@@ -1,7 +1,7 @@
 """Combine Exiros "quotationsReport" exports into one formatted Excel workbook.
 
-    python scripts/rfq_to_excel.py OUTPUT.xlsx REPORT.xls [REPORT.xls ...]
-    python scripts/rfq_to_excel.py OUTPUT.xlsx path/to/folder
+    python rfq_to_excel.py OUTPUT.xlsx REPORT.xls [REPORT.xls ...]
+    python rfq_to_excel.py OUTPUT.xlsx path/to/folder
 
 Each export from the Exiros supplier portal covers one RFQ and has an "Items"
 sheet with the requested lines and our submitted price, quantity, delivery

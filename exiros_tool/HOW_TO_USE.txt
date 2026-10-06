@@ -1,0 +1,26 @@
+EXIROS RFQ DOWNLOADER - HOW TO USE
+
+ONE-TIME SETUP
+1. Install Python from https://www.python.org/downloads/ (tick "Add python.exe to PATH" during install).
+2. Install Google Chrome or use Microsoft Edge (already on Windows).
+3. Unzip this folder somewhere, e.g. Documents\exiros_tool.
+4. Double-click setup_windows.bat and wait until it says "Setup finished".
+
+STEP 1 - TEACH IT THE PORTAL (once)
+1. Double-click capture_pages.bat. A browser window opens.
+2. Log in to Exiros as usual, then press Enter in the black window.
+3. In the browser, open your RFQ / quotations list. Press Enter in the black window to save it.
+4. Open one RFQ (the page with the quotations report download). Press Enter again.
+5. Type q and press Enter.
+6. Zip the folder captures\<today's date> and send it to Claude.
+   Claude fills in exiros_config.json and sends it back - put it in this folder.
+
+STEP 2 - DOWNLOAD EVERYTHING (any time)
+1. Double-click download_all_rfqs.bat.
+2. Log in to Exiros, press Enter in the black window. Don't touch the browser while it works.
+3. When it finishes, your Excel file is in the output folder.
+   Reports already downloaded are skipped, so later runs only fetch new RFQs.
+
+PRIVACY
+Your password and data stay on your computer. You stay logged in between runs via the
+browser_profile folder; delete that folder to log out.

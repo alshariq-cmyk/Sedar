@@ -5,7 +5,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "scripts"))  # generate_sample_data, rfq_to_excel
+sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "exiros_tool"))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from generate_sample_data import generate  # noqa: E402
 

@@ -1,0 +1,11 @@
+{
+  "_help": "Portal-specific settings. Filled in from the pages saved with 'capture'. Selectors are CSS selectors.",
+  "portal_url": "",
+  "rfq_list_url": "",
+  "rfq_link": "",
+  "rfq_number_regex": "\\d{6,}",
+  "next_page": "",
+  "download_button": "",
+  "delay_seconds": 3,
+  "download_timeout_seconds": 60
+}
