@@ -54,16 +54,23 @@ def read_report(path: Path) -> pd.DataFrame:
     if header_row is None:
         raise ValueError(f"{path.name}: couldn't find the Exiros item header row (#, Description, Unit price…)")
     headers = [str(v).strip() if pd.notna(v) else "" for v in raw.iloc[header_row]]
-    df = raw.iloc[header_row + 1 :].copy()
-    df.columns = headers
-    df = df[[h for h in headers if h in COLUMNS]].rename(columns=COLUMNS)
-    df = df[df["line"].notna() & (df["line"].astype(str).str.strip() != "")]
+    return lines_from_table(headers, raw.iloc[header_row + 1 :].values.tolist(), rfq_number(path), path.name)
+
+
+def lines_from_table(headers: list[str], rows: list[list], rfq: str, source: str) -> pd.DataFrame:
+    """Normalize item rows laid out like the Exiros items table (from the export file or the quote page)."""
+    headers = [re.sub(r"\s+", " ", str(h)).strip() for h in headers]
+    df = pd.DataFrame([list(r) + [None] * (len(headers) - len(r)) for r in rows], columns=headers, dtype=object)
+    df = df.loc[:, ~df.columns.duplicated()]
+    df = df[[h for h in df.columns if h in COLUMNS]].rename(columns=COLUMNS)
     for name in COLUMNS.values():
         if name not in df:
             df[name] = None
+    df = df[df["line"].notna() & (df["line"].astype(str).str.strip() != "")]
 
     for name in ("line", "requested_qty", "unit_price", "quoted_qty", "delivery_days"):
-        df[name] = pd.to_numeric(df[name], errors="coerce")
+        # The quote page shows numbers like "3,290.0".
+        df[name] = pd.to_numeric(df[name].map(lambda v: str(v).replace(",", "").strip() if isinstance(v, str) else v), errors="coerce")
     df["line"] = df["line"].astype("Int64")
     # The portal writes dates as MM/DD/YYYY text.
     df["date_needed"] = pd.to_datetime(df["date_needed"], format="%m/%d/%Y", errors="coerce")
@@ -79,9 +86,9 @@ def read_report(path: Path) -> pd.DataFrame:
             return "Qty differs"
         return "Quoted"
 
-    df["status"] = df.apply(status, axis=1)
-    df.insert(0, "rfq", rfq_number(path))
-    df["source_file"] = path.name
+    df["status"] = df.apply(status, axis=1) if len(df) else pd.Series(dtype=object)
+    df.insert(0, "rfq", rfq)
+    df["source_file"] = source
     return df.reset_index(drop=True)
 
 

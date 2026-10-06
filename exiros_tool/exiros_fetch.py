@@ -23,6 +23,7 @@ from urllib.parse import urljoin
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
+import rfq_to_excel
 import store
 
 HERE = Path(__file__).resolve().parent
@@ -101,6 +102,18 @@ def rfq_number(text: str, pattern: str) -> str | None:
     return match.group(0) if match else None
 
 
+# Buttons that could change a bid. The program only reads, so it refuses to click
+# anything whose label matches, whatever the settings file says.
+FORBIDDEN_CLICK = re.compile(r"place bid|bid data|import|save|submit|send|confirm|accept|withdraw|delete|decline|upload", re.I)
+
+
+def safe_click(locator) -> None:
+    label = " ".join(filter(None, [locator.inner_text(), locator.get_attribute("value"), locator.get_attribute("title")])).strip()
+    if FORBIDDEN_CLICK.search(label):
+        raise RuntimeError(f"Refused to click '{label}': it could change a bid.")
+    locator.click()
+
+
 def _href(base: str, href: str | None) -> str | None:
     return urljoin(base, href) if href and not href.lower().startswith("javascript") else None
 
@@ -157,7 +170,7 @@ def collect_rfqs(page, config: dict, progress) -> list[dict]:
         next_button = page.locator(config["next_page"]) if config.get("next_page") else None
         if not new or next_button is None or next_button.count() == 0 or not next_button.first.is_enabled():
             break
-        next_button.first.click()
+        safe_click(next_button.first)
         page.wait_for_timeout(config["delay_seconds"] * 1000)
     return list(found.values())
 
@@ -168,20 +181,48 @@ def download_report(page, item: dict, config: dict, download_dir: Path) -> Path:
     else:  # JavaScript-only links: open the list again and click the same row
         page.goto(config["rfq_list_url"])
         for _ in range(item["page"] - 1):
-            page.locator(config["next_page"]).first.click()
+            safe_click(page.locator(config["next_page"]).first)
             page.wait_for_load_state()
         rows = page.locator(config["rfq_row"] or config["rfq_link"])
         target = rows.nth(item["index"])
-        (target.locator(config["rfq_link"]).first if config.get("rfq_row") else target).click()
+        safe_click(target.locator(config["rfq_link"]).first if config.get("rfq_row") else target)
     page.wait_for_load_state()
+    button = page.locator(config["download_button"])
+    if button.count() == 0:
+        return None  # e.g. not-quoted RFQs have no "Export items" button; read the page instead
     with page.expect_download(timeout=config["download_timeout_seconds"] * 1000) as info:
-        page.locator(config["download_button"]).first.click()
+        safe_click(button.first)
     download = info.value
     suffix = Path(download.suggested_filename).suffix or ".xls"
     download_dir.mkdir(parents=True, exist_ok=True)
     path = download_dir / f"{item['rfq']}_quotationsReport{suffix}"
     download.save_as(path)
     return path
+
+
+READ_ITEMS_JS = """() => {
+  const clean = s => (s || "").replace(/\\s+/g, " ").trim();
+  for (const table of document.querySelectorAll("table")) {
+    const heads = [...table.querySelectorAll("th")].map(th => clean(th.innerText));
+    if (!heads.includes("Description") || !heads.some(h => h.startsWith("Requested"))) continue;
+    const rows = [];
+    for (const tr of table.querySelectorAll("tr")) {
+      const cells = [...tr.querySelectorAll("td")];
+      if (cells.length < 4) continue;
+      rows.push(cells.map(td => { const f = td.querySelector("input, textarea, select"); return f ? f.value : clean(td.innerText); }));
+    }
+    return { heads, rows };
+  }
+  return null;
+}"""
+
+
+def read_items_from_page(page, item: dict):
+    """Read the items table shown on the quote page (only reads field values, never types)."""
+    found = page.evaluate(READ_ITEMS_JS)
+    if not found or not found["rows"]:
+        raise RuntimeError("No items table on the RFQ page.")
+    return rfq_to_excel.lines_from_table(found["heads"], found["rows"], item["rfq"], "read from the RFQ page")
 
 
 def logout(page, config: dict) -> None:
@@ -222,7 +263,11 @@ def update_from_exiros(conn, config: dict, download_dir: Path, progress=print, *
                     continue
                 try:
                     path = download_report(page, item, config, download_dir)
-                    _, is_new = store.import_report(conn, path, deadline=item["deadline"], title=item["title"], rfq=item["rfq"])
+                    if path:
+                        _, is_new = store.import_report(conn, path, deadline=item["deadline"], title=item["title"], rfq=item["rfq"])
+                    else:
+                        lines = read_items_from_page(page, item)
+                        is_new = store.save_rfq(conn, lines, deadline=item["deadline"], title=item["title"], source_file="RFQ page")
                     new += is_new
                     progress(f"[{n}/{len(rfqs)}] RFQ {item['rfq']} saved{' (new)' if is_new else ''}")
                 except Exception as exc:

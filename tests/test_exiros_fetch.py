@@ -36,12 +36,22 @@ def build_portal(root: Path, logouts: list) -> None:
     (root / "logout.html").write_text("<html><body>Bye</body></html>")
     (root / "rfq").mkdir()
     (root / "files").mkdir()
+    # Like the real quote page: "Place bid" and "Import bid data" sit next to "Export items".
+    # The not-quoted RFQ (5400801) has no export button, only the items table with input boxes.
+    traps = ('<a id="placebid" href="/forbidden-place-bid.html">Place bid</a>'
+             '<button id="importbid" onclick="location.href=\'/forbidden-import.html\'">Import bid data</button>')
     for r in RFQS:
+        quoted = r != "5400801"
+        export = f'<a id="export" href="/files/{r}.xlsx" download="quotationsReport.xlsx">Export items</a>' if quoted else ""
+        table = ('<table><tr><th>#</th><th></th><th>Description</th><th>Client</th><th>Unit price</th><th>Quoted<br>quantity</th>'
+                 '<th>Requested<br>quantity</th><th>Unit of<br>measure</th><th>Date<br>needed</th><th>Delivery<br>time</th><th>Attachs</th></tr>'
+                 '<tr><td>1</td><td></td><td>HYDRAULIC PUMP</td><td>Tenaris Saudi</td><td><input value="0"></td><td><input value="0"></td>'
+                 '<td>2.0</td><td>PZA - Piece</td><td>02/02/2027</td><td><input value="0"></td><td></td></tr></table>')
         (root / "rfq" / f"{r}.html").write_text(
-            f'<html><body><a id="logout" href="/logout.html">Log out</a><a id="export" href="/files/{r}.xlsx" download="quotationsReport.xlsx">Export</a></body></html>')
-        price = "" if r == "5400801" else 100
-        make_report(root / "files" / f"{r}.xlsx",
-                    [[1, "Item", "Item", "Tenaris", "2.0", "PZA", "11/30/2026", price, 2 if price else "", 30, "", ""]])
+            f'<html><body><a id="logout" href="/logout.html">Log out</a>{export}{traps}{table}</body></html>')
+        if quoted:
+            make_report(root / "files" / f"{r}.xlsx",
+                        [[1, "Item", "Item", "Tenaris", "2.0", "PZA", "11/30/2026", 100, 2, 30, "", ""]])
 
 
 @pytest.fixture
@@ -119,7 +129,10 @@ def test_update_waits_for_login_then_collects_everything(portal, tmp_path):
     assert rows["5400801"]["status"] == "Not quoted"
     assert rows["5400796"]["status"] == "Quoted" and rows["5400796"]["total"] == 200
     assert rows["5400815"]["title"] == "Office supplies 5400815"
+    lines = conn.execute("SELECT * FROM lines WHERE rfq = '5400801'").fetchall()
+    assert [(l["description"], l["requested_qty"], l["date_needed"]) for l in lines] == [("HYDRAULIC PUMP", 2.0, "2027-02-02")]
     assert any(path.startswith("/logout.html") for path in requests), "should log out at the end"
+    assert not any("forbidden" in path for path in requests), "must never press Place bid / Import bid data"
 
     # Second run: nothing new, and the closed RFQ isn't downloaded again.
     requests.clear()
@@ -136,3 +149,28 @@ def test_gives_up_if_never_logged_in(portal, tmp_path, monkeypatch):
     conn = store.connect(tmp_path / "rfqs.db")
     with pytest.raises(RuntimeError, match="Not logged in"):
         exiros_fetch.update_from_exiros(conn, config_for(base), tmp_path / "downloads", lambda m: None, browser_factory=headless)
+
+
+@needs_chromium
+def test_refuses_to_click_bid_buttons_even_if_configured(portal, tmp_path):
+    base, requests = portal
+    conn = store.connect(tmp_path / "rfqs.db")
+    config = config_for(base) | {"download_button": "#placebid"}
+
+    def auto_login(p):
+        browser = headless(p)
+        original = browser.new_context
+
+        def new_context(**kwargs):
+            context = original(**kwargs)
+            context.on("page", lambda page: page.on("load", lambda: page.click("#login") if page.url.endswith("login.html") else None))
+            return context
+
+        browser.new_context = new_context
+        return browser
+
+    log = []
+    found, new, failed = exiros_fetch.update_from_exiros(conn, config, tmp_path / "downloads", log.append, browser_factory=auto_login)
+    assert set(failed) == set(RFQS)  # every quote page has the button, so every RFQ is refused
+    assert any("Refused to click 'Place bid'" in m for m in log)
+    assert not any("forbidden" in path for path in requests)

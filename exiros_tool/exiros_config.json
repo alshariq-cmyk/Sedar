@@ -17,10 +17,11 @@
   ],
   "title": "",
   "next_page": "",
-  "download_button": "",
+  "download_button": "text=Export items",
   "logout_selector": "",
   "logout_url": "",
   "delay_seconds": 2,
   "download_timeout_seconds": 60,
-  "max_pages": 200
+  "max_pages": 200,
+  "_known": "From screenshots: list page 'Tenders' (Open/Preview/Closed tabs), columns Closing date | Number | Title | Buyer | Division | Items (quoted/total) | Type | Actions ($ opens the quote page) | Messages; 15 rows per page. Quote page has 'Export items' (download), 'Import bid data' and 'Place bid' (never clicked)."
 }
