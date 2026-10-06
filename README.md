@@ -56,3 +56,11 @@ pytest
 ```
 
 Code layout: `sedar/importer.py` (reading and mapping exports), `sedar/analytics.py` (metrics), `sedar/main.py` (web routes), `sedar/templates/` (pages). Chart.js is bundled in `sedar/static/vendor/` so the app works offline.
+
+## Exiros RFQ quotations to Excel
+
+`scripts/rfq_to_excel.py` combines the `quotationsReport.xls` files exported from the Exiros supplier portal into one workbook with a **Summary** sheet (one row per RFQ: client, line counts, total quoted value, earliest date needed, longest delivery) and a **Lines** sheet (every line with our unit price, quoted quantity, line total, delivery days, brand, notes and a status: Quoted / Qty differs / Not quoted). The RFQ number is taken from the file name.
+
+```bash
+python scripts/rfq_to_excel.py output/rfqs.xlsx path/to/exports/   # a folder, or list files
+```
