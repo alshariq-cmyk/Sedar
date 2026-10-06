@@ -13,46 +13,50 @@
     <nav>
       <a href="/" class="{{ 'active' if page == 'dashboard' }}">RFQs</a>
       <a href="/items" class="{{ 'active' if page == 'items' }}">Price history</a>
-      <a href="/import" class="{{ 'active' if page == 'import' }}">Add files</a>
     </nav>
+    <div class="head-actions">
+      <a class="btn light" href="/export.xlsx">Download Excel</a>
+      <form method="post" action="/update"><button class="btn big" id="refresh" {{ 'disabled' if updater.running }}>⟳ Refresh RFQs</button></form>
+    </div>
   </div>
 </header>
 <main class="wrap">
   {% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
   {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
-  <div class="updatebar">
-    <span class="when">Last update from Exiros: <strong>{{ last_update_ago }}</strong>{% if last_update %} · {{ last_update.message }}{% endif %}</span>
-    <form method="post" action="/update"><button class="btn" {{ 'disabled' if updater.running }}>Update from Exiros</button></form>
-  </div>
-  <div class="card progress" id="progress" {% if not updater.running and not updater.result %}hidden{% endif %}>
+  <div class="progress" id="progress" {% if not updater.running %}hidden{% endif %}>
     <div class="step" id="progress-step">{{ updater.step }}</div>
+    <div class="hint" id="progress-hint">Keep this page open. It updates by itself.</div>
     <div class="log" id="progress-log"></div>
   </div>
+  <p class="lastrefresh">Last refreshed from Exiros: <strong>{{ last_update_ago }}</strong>{% if last_update and last_update.message %} · {{ last_update.message }}{% endif %}</p>
 {% block content %}{% endblock %}
 </main>
+<footer class="wrap">Have quotation report files already? <a href="/import">Add them by hand</a>.</footer>
 <script>
-  // Show live progress while an update runs; reload the page when it finishes.
+  // While a refresh runs, show its progress; reload when it ends.
   const box = document.getElementById("progress");
-  let wasRunning = {{ 'true' if updater.running else 'false' }};
+  let running = {{ 'true' if updater.running else 'false' }};
   async function poll() {
     try {
       const s = await (await fetch("/update/status")).json();
       if (s.running) {
         box.hidden = false;
+        document.getElementById("refresh").disabled = true;
         document.getElementById("progress-step").textContent = s.step;
-        document.getElementById("progress-log").textContent = s.log.slice(-8).join("\n");
-        wasRunning = true;
-      } else if (wasRunning) {
+        document.getElementById("progress-hint").textContent = s.step.startsWith("Please log in")
+          ? "A browser window opened on the Exiros login page. Log in there, then come back here."
+          : "Keep this page open. It updates by itself.";
+        document.getElementById("progress-log").textContent = s.log.slice(-6).join("\n");
+        running = true;
+      } else if (running) {
         const r = s.result || {};
-        location.href = "/?" + (r.ok ? "msg=" : "error=") + encodeURIComponent((r.ok ? "Update finished. " : "Update stopped: ") + (r.message || ""));
+        location.href = "/?" + (r.ok ? "msg=" : "error=") + encodeURIComponent((r.ok ? "Refresh finished. " : "Refresh stopped: ") + (r.message || ""));
         return;
-      } else {
-        box.hidden = true;
       }
     } catch (e) {}
-    if (wasRunning) setTimeout(poll, 1500);
+    if (running) setTimeout(poll, 1500);
   }
-  if (wasRunning || location.search.includes("updating=1")) { wasRunning = true; poll(); }
+  if (running || location.search.includes("updating=1")) { running = true; poll(); }
 </script>
 </body>
 </html>

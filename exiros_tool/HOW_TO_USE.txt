@@ -8,11 +8,12 @@ ONE-TIME SETUP
 EVERY DAY
 1. Double-click start_platform.bat. The RFQ Platform opens in your browser.
    Keep the black window open while you use it; close it to stop.
-2. To get the latest RFQs, click "Update from Exiros".
+2. To get the latest RFQs, click "Refresh RFQs".
    A browser window opens on the Exiros login page. Log in.
    The platform then collects every RFQ (quoted and not quoted) with deadlines,
    logs out of Exiros and closes that window by itself.
 3. The platform never goes into Exiros unless you click that button and log in.
+   It only reads: it never types prices and never presses "Place bid".
 
 WHAT YOU SEE
 - RFQs sorted by deadline: red = closes within 48 hours, orange = within 7 days.

@@ -2,57 +2,42 @@
 {% from "_macros.html" import pill %}
 {% block title %}RFQs{% endblock %}
 {% block content %}
-<div class="grid kpis">
-  <div class="card kpi {{ 'alert-soon' if cards.soon }}"><div class="label">Closing within 48 hours, not fully quoted</div><a class="value" href="/?view=open">{{ cards.soon }}</a></div>
-  <div class="card kpi {{ 'alert-week' if cards.week }}"><div class="label">Closing within 7 days</div><a class="value" href="/?view=open">{{ cards.week }}</a></div>
-  <div class="card kpi"><div class="label">Open RFQs not fully quoted</div><a class="value" href="/?view=open&status=Not+quoted">{{ cards.not_quoted }}</a><span class="delta muted">of {{ cards.open }} open</span></div>
-  <div class="card kpi"><div class="label">New since you last looked</div><a class="value" href="/?view=new">{{ cards.new }}</a>
-    {% if cards.new %}<form method="post" action="/seen"><button class="btn secondary small">Mark all as seen</button></form>{% endif %}</div>
-  <div class="card kpi"><div class="label">Value quoted on open RFQs</div><div class="value">{{ cards.open_value|sar }}</div><span class="delta muted">SAR</span></div>
+<div class="counters">
+  <a class="counter red {{ 'active' if show == 'need' and not q }}" href="/?show=need"><div class="n">{{ counts.need }}</div><div class="t">Need your quote</div></a>
+  <a class="counter amber {{ 'active' if show == 'soon' and not q }}" href="/?show=soon"><div class="n">{{ counts.soon }}</div><div class="t">Close within 48 hours</div></a>
+  <a class="counter blue {{ 'active' if show == 'new' and not q }}" href="/?show=new"><div class="n">{{ counts.new }}</div><div class="t">New</div></a>
 </div>
 
-<div class="filters">
-  {% for key, label in [('open', 'Open'), ('new', 'New'), ('closed', 'Closed'), ('all', 'All')] %}
-  <a href="/?view={{ key }}" class="{{ 'active' if view == key }}">{{ label }}</a>
-  {% endfor %}
+<div class="listbar">
+  <h1>{% if q %}Search results{% else %}{{ {'open': 'Open RFQs', 'need': 'Need your quote', 'soon': 'Closing within 48 hours', 'new': 'New RFQs', 'closed': 'Closed RFQs'}.get(show, 'Open RFQs') }}{% endif %}</h1>
+  <span class="switch">
+    <a href="/?show=open" class="{{ 'active' if show == 'open' and not q }}">Open ({{ counts.open }})</a>
+    <a href="/?show=closed" class="{{ 'active' if show == 'closed' and not q }}">Closed ({{ counts.closed }})</a>
+  </span>
   <span class="spacer"></span>
-  <a href="/export.xlsx">Download all as Excel</a>
+  <form method="get" action="/"><input type="search" name="q" value="{{ q }}" placeholder="Search RFQ number or item"><button class="btn light">Search</button></form>
 </div>
-<form class="searchbar" method="get" action="/">
-  <input type="hidden" name="view" value="{{ view }}">
-  <input type="search" name="q" value="{{ q }}" placeholder="Search RFQ no., client, item, brand…">
-  <select name="status" onchange="this.form.submit()">
-    <option value="">Any status</option>
-    {% for s in ['Not quoted', 'Partially quoted', 'Quoted'] %}<option {{ 'selected' if status == s }}>{{ s }}</option>{% endfor %}
-  </select>
-  <select name="client" onchange="this.form.submit()">
-    <option value="">Any client</option>
-    {% for c in clients %}<option {{ 'selected' if client == c }}>{{ c }}</option>{% endfor %}
-  </select>
-  <button class="btn secondary">Search</button>
-</form>
 
-<div class="card table-wrap">
 {% if rows %}
-<table>
-  <tr><th>RFQ No.</th><th>Deadline</th><th>Time left</th><th>Status</th><th>Client</th><th class="n">Lines</th><th class="n">Total (SAR)</th><th>Earliest needed</th></tr>
+<div class="cards">
   {% for r in rows %}
-  <tr class="u-{{ r.urgency }}">
-    <td><a href="/rfq/{{ r.rfq }}"><strong>{{ r.rfq }}</strong></a> {% if r.is_new %}<span class="pill new">New</span>{% endif %}{% if r.title %}<div class="muted">{{ r.title }}</div>{% endif %}</td>
-    <td>{{ r.deadline|datetime }}</td>
-    <td><span class="left u-{{ r.urgency }}">{{ r.time_left }}</span></td>
-    <td>{{ pill(r.status) }}</td>
-    <td class="wrap">{{ r.client or '–' }}</td>
-    <td class="n">{{ r.quoted_lines }}/{{ r.lines }}</td>
-    <td class="n">{{ r.total|sar }}</td>
-    <td>{{ r.earliest_needed|date }}</td>
-  </tr>
+  <a class="card u-{{ r.urgency }}" href="/rfq/{{ r.rfq }}">
+    <div>
+      <div class="top"><span class="no">{{ r.rfq }}</span><span class="title">{{ r.title or (r.client or '') }}</span>{% if r.is_new %}<span class="newtag">NEW</span>{% endif %}</div>
+      <div class="closes">{{ r.time_left }}{% if r.closes %} <small>· {{ r.closes }}</small>{% endif %}</div>
+    </div>
+    <div class="right">
+      {{ pill(r.status) }}
+      <span class="total">{{ r.total|sar }} <small>SAR</small></span>
+    </div>
+  </a>
   {% endfor %}
-</table>
-{% elif total_count %}
-<p class="empty">No RFQs match.</p>
-{% else %}
-<p class="empty">No RFQs yet. Click <strong>Update from Exiros</strong>, or <a href="/import">add quotation report files</a>.</p>
-{% endif %}
 </div>
+{% elif q %}
+<div class="empty"><h2>Nothing found</h2><p>No RFQ matches “{{ q }}”.</p></div>
+{% elif total_count %}
+<div class="empty"><h2>Nothing here</h2><p><a href="/?show=open">Show all open RFQs</a></p></div>
+{% else %}
+<div class="empty"><h2>No RFQs yet</h2><p>Press <strong>Refresh RFQs</strong> at the top and log in to Exiros.</p></div>
+{% endif %}
 {% endblock %}

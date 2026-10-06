@@ -98,7 +98,7 @@ def test_parse_deadline():
 
 
 def test_unconfigured_portal_is_reported():
-    assert "isn't set up yet" in exiros_fetch.config_problem(exiros_fetch.load_config(Path("/nonexistent")))
+    assert "Almost ready" in exiros_fetch.config_problem(exiros_fetch.load_config(Path("/nonexistent")))
 
 
 @needs_chromium

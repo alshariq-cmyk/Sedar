@@ -50,6 +50,13 @@ def fmt_when(value: str | None, with_time: bool = True) -> str:
     return when.strftime("%d %b %Y, %H:%M" if with_time and len(value) > 10 else "%d %b %Y")
 
 
+def closes_label(value: str | None) -> str:
+    when = parse_deadline(value)
+    if when is None:
+        return ""
+    return when.strftime("%a %d %b, %H:%M") if len(value) > 10 else when.strftime("%a %d %b")
+
+
 def urgency(deadline: str | None, now: datetime) -> str:
     """closed / soon (≤48h) / week (≤7 days) / later / none"""
     when = parse_deadline(deadline)
@@ -67,16 +74,18 @@ def urgency(deadline: str | None, now: datetime) -> str:
 def time_left(deadline: str | None, now: datetime) -> str:
     when = parse_deadline(deadline)
     if when is None:
-        return "No deadline"
+        return "No closing date"
+    plural = lambda n, w: f"{n} {w}{'s' if n != 1 else ''}"  # noqa: E731
     delta = when - now
     if delta.total_seconds() < 0:
         days = (-delta).days
-        return "Closed today" if days == 0 else f"Closed {days} day{'s' if days != 1 else ''} ago"
+        return "Closed today" if days == 0 else f"Closed {plural(days, 'day')} ago"
     hours = int(delta.total_seconds() // 3600)
+    if hours < 1:
+        return "Closes in less than 1 hour"
     if hours < 24:
-        return f"{hours} hour{'s' if hours != 1 else ''} left" if hours else "Less than 1 hour left"
-    days = delta.days
-    return f"{days} day{'s' if days != 1 else ''} left"
+        return f"Closes in {plural(hours, 'hour')}"
+    return f"Closes in {plural(delta.days, 'day')}"
 
 
 def ago(stamp: str | None, now: datetime) -> str:
@@ -158,29 +167,25 @@ def create_app(data_dir: Path | str = DATA_DIR, config_path: Path | str | None =
         for r in rows:
             r["urgency"] = urgency(r["deadline"], now)
             r["time_left"] = time_left(r["deadline"], now)
+            r["closes"] = closes_label(r["deadline"])
             r["is_new"] = r["seen_at"] is None
         return rows
 
     @app.get("/", response_class=HTMLResponse)
-    def dashboard(request: Request, view: str = "open", status: str = "", client: str = "", q: str = ""):
+    def dashboard(request: Request, show: str = "open", q: str = ""):
         now = datetime.now()
         rows = enrich(store.rfqs_frame(conn), now)
         open_rows = [r for r in rows if r["urgency"] != "closed"]
-        not_done = lambda r: r["status"] != "Quoted"  # noqa: E731
-        cards = {
-            "soon": len([r for r in open_rows if r["urgency"] == "soon" and not_done(r)]),
-            "week": len([r for r in open_rows if r["urgency"] in ("soon", "week")]),
-            "new": len([r for r in rows if r["is_new"]]),
-            "not_quoted": len([r for r in open_rows if not_done(r)]),
-            "open_value": sum(r["total"] for r in open_rows),
-            "open": len(open_rows),
+        needs_quote = [r for r in open_rows if r["status"] != "Quoted"]
+        groups = {
+            "open": open_rows,
+            "need": needs_quote,
+            "soon": [r for r in open_rows if r["urgency"] == "soon"],
+            "new": [r for r in rows if r["is_new"]],
+            "closed": [r for r in rows if r["urgency"] == "closed"],
         }
-        clients = sorted({c.strip() for r in rows for c in (r["client"] or "").split(";") if c.strip()})
-        shown = {"open": open_rows, "closed": [r for r in rows if r["urgency"] == "closed"], "new": [r for r in rows if r["is_new"]]}.get(view, rows)
-        if status:
-            shown = [r for r in shown if r["status"] == status]
-        if client:
-            shown = [r for r in shown if client in (r["client"] or "")]
+        counts = {k: len(v) for k, v in groups.items()}
+        shown = rows if q else groups.get(show, open_rows)
         if q:
             needle = q.lower()
             matches = {row[0] for row in conn.execute(
@@ -189,12 +194,11 @@ def create_app(data_dir: Path | str = DATA_DIR, config_path: Path | str | None =
             shown = [r for r in shown if needle in r["rfq"].lower() or needle in (r["client"] or "").lower()
                      or needle in (r["title"] or "").lower() or r["rfq"] in matches]
         order = {"soon": 0, "week": 1, "later": 2, "none": 3, "closed": 4}
-        far = datetime.max
-        shown.sort(key=lambda r: (order[r["urgency"]], parse_deadline(r["deadline"]) or far, r["rfq"]))
-        if view == "closed":
+        shown.sort(key=lambda r: (order[r["urgency"]], parse_deadline(r["deadline"]) or datetime.max, r["rfq"]))
+        if show == "closed" and not q:
             shown.reverse()
-        return render(request, "dashboard.html", page="dashboard", rows=shown, cards=cards, view=view,
-                      status=status, client=client, q=q, clients=clients, total_count=len(rows))
+        return render(request, "dashboard.html", page="dashboard", rows=shown, counts=counts, show=show, q=q,
+                      total_count=len(rows))
 
     @app.get("/rfq/{rfq}", response_class=HTMLResponse)
     def rfq_detail(request: Request, rfq: str):

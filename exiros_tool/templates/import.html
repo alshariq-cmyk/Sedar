@@ -1,13 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Add files{% endblock %}
 {% block content %}
-<h1>Add quotation report files</h1>
-<p class="sub">Normally <strong>Update from Exiros</strong> does this for you. Use this page if you've downloaded quotation reports yourself. You can select many files at once.</p>
-<div class="card">
-  <form method="post" action="/import" enctype="multipart/form-data">
-    <div class="row"><input type="file" name="files" accept=".xls,.xlsx" multiple required></div>
-    <button class="btn">Add to platform</button>
-  </form>
-  <p class="muted">The RFQ number is taken from the file name, e.g. <code>5400796_quotationsReport.xls</code>. Adding an RFQ that's already here replaces it with the newer file.</p>
-</div>
+<h1 class="page-title">Add quotation report files</h1>
+<p class="sub">You normally don't need this: <strong>Refresh RFQs</strong> collects everything. Use it only for report files you downloaded yourself.</p>
+<form method="post" action="/import" enctype="multipart/form-data" class="searchrow">
+  <input type="file" name="files" accept=".xls,.xlsx" multiple required>
+  <button class="btn">Add</button>
+</form>
 {% endblock %}

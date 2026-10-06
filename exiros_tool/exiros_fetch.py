@@ -35,6 +35,7 @@ DEFAULTS = {
     "portal_url": "",           # login page
     "logged_in_selector": "",   # element only present once logged in
     "rfq_list_url": "",         # RFQ list; empty = stay on the page shown after login
+    "list_clicks": [],          # clicked in order to reach the list, e.g. the Tenders "Open" tab (only new RFQs)
     "rfq_row": "",              # one row per RFQ in the list (optional)
     "rfq_link": "",             # link that opens the RFQ (inside the row if rfq_row is set)
     "rfq_number_regex": r"\d{6,}",
@@ -62,8 +63,8 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
 def config_problem(config: dict) -> str | None:
     missing = [k for k in ("portal_url", "logged_in_selector", "rfq_link", "download_button") if not config.get(k)]
     if missing:
-        return ("The Exiros connection isn't set up yet. It needs one look at the portal pages "
-                "(the one-time screenshots), then this button will work.")
+        return ("Almost ready: one setup step is left. Run capture_pages.bat once and send the captures "
+                "folder, then Refresh RFQs will work.")
     return None
 
 
@@ -143,6 +144,9 @@ def collect_rfqs(page, config: dict, progress) -> list[dict]:
     """Walk the RFQ list (all pages) and return [{rfq, href, index, deadline, title}]."""
     if config.get("rfq_list_url"):
         page.goto(config["rfq_list_url"])
+    for selector in config.get("list_clicks", []):
+        page.wait_for_load_state()
+        safe_click(page.locator(selector).first)
     found: dict[str, dict] = {}
     for page_no in range(1, config["max_pages"] + 1):
         page.wait_for_load_state()
@@ -180,6 +184,8 @@ def download_report(page, item: dict, config: dict, download_dir: Path) -> Path:
         page.goto(item["href"])
     else:  # JavaScript-only links: open the list again and click the same row
         page.goto(config["rfq_list_url"])
+        for selector in config.get("list_clicks", []):
+            safe_click(page.locator(selector).first)
         for _ in range(item["page"] - 1):
             safe_click(page.locator(config["next_page"]).first)
             page.wait_for_load_state()

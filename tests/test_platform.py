@@ -40,31 +40,35 @@ def test_urgency_and_time_left():
     assert platform.urgency("2026-11-11 10:00", now) == "later"
     assert platform.urgency("2026-10-05 10:00", now) == "closed"
     assert platform.urgency(None, now) == "none"
-    assert platform.time_left("2026-10-07 10:00", now) == "22 hours left"
-    assert platform.time_left("2026-10-09 12:00", now) == "3 days left"
+    assert platform.time_left("2026-10-07 10:00", now) == "Closes in 22 hours"
+    assert platform.time_left("2026-10-09 12:00", now) == "Closes in 3 days"
     assert platform.time_left("2026-10-03 12:00", now) == "Closed 3 days ago"
 
 
 def test_empty_dashboard_explains_what_to_do(client):
-    assert "No RFQs yet" in client.get("/").text
+    page = client.get("/").text
+    assert "No RFQs yet" in page and "Refresh RFQs" in page
 
 
 def test_import_view_deadline_and_export(client, tmp_path):
     res = upload(client, report(tmp_path, "5400796", 745), report(tmp_path, "5400801", ""))
     assert "Imported 2 RFQ(s), 2 new" in res.text
-    assert res.text.count('class="pill new"') == 2
+    assert res.text.count('class="newtag"') == 2
 
     soon = (datetime.now() + timedelta(hours=20)).strftime("%Y-%m-%d")
     client.post("/rfq/5400801/deadline", data={"date": soon, "time": "23:00"})
     page = client.get("/rfq/5400801").text
-    assert "Not quoted" in page and "left" in page
+    assert "Not quoted" in page and "Closes in" in page
     dash = client.get("/").text
-    assert dash.count('class="pill new"') == 1  # opening 5400801 marked it seen
-    assert dash.index("5400801") < dash.index("5400796")  # soonest deadline first
-    assert 'alert-soon' in dash
+    assert dash.count('class="newtag"') == 1  # opening 5400801 marked it seen
+    assert dash.index("5400801") < dash.index("5400796")  # soonest closing first
+    assert "u-soon" in dash
 
     assert "5400796" in client.get("/?q=monitor").text
-    assert "5400796" not in client.get("/?status=Not+quoted").text
+    need = client.get("/?show=need").text  # both have an unpriced line, so both need a quote
+    assert "5400801" in need and "5400796" in need
+    soon = client.get("/?show=soon").text
+    assert "5400801" in soon and "5400796" not in soon
     history = client.get("/items?q=dell").text
     assert "745.00" in history and "Times quoted" in history
 
@@ -78,7 +82,7 @@ def test_import_view_deadline_and_export(client, tmp_path):
 
 def test_update_button_without_setup_explains(client):
     res = client.post("/update")
-    assert "isn&#39;t set up yet" in res.text or "isn't set up yet" in res.text
+    assert "Almost ready" in res.text
 
 
 @needs_chromium
@@ -110,6 +114,7 @@ def test_update_button_runs_full_update(portal, tmp_path, monkeypatch):  # noqa:
         time.sleep(0.5)
     assert state["result"]["ok"], state
     assert "Found 3 RFQs, 3 new" in state["result"]["message"]
-    dash = client.get("/?view=all").text
-    assert all(n in dash for n in ("5400796", "5400801", "5400815"))
-    assert "Last update from Exiros: <strong>just now" in dash
+    dash = client.get("/").text
+    assert "5400796" in dash and "5400801" in dash and "5400815" not in dash  # 5400815 already closed
+    assert "5400815" in client.get("/?show=closed").text
+    assert "Last refreshed from Exiros: <strong>just now" in dash
