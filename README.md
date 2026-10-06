@@ -73,3 +73,7 @@ Portal-specific selectors live in `exiros_tool/exiros_config.json`. They need fi
 cd exiros_tool && pip install -r requirements.txt && python app.py   # http://127.0.0.1:8765
 python exiros_tool/rfq_to_excel.py out.xlsx reports/               # convert report files without the platform
 ```
+
+## RFQ Platform on claude.ai (`artifact/rfq-platform.html`)
+
+The same RFQ board as a Claude Artifact: https://claude.ai/artifact/6mruZsBUMQs52LDauX3HE6 (private to its owner). Quotation report files are dropped onto the page, parsed in the browser with SheetJS, and stored in the artifact database (`rfqs/<RFQ number>`). It cannot log in to Exiros itself.

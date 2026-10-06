@@ -1,0 +1,627 @@
+<title>RFQ Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a deadline board. Summary strip, then RFQs grouped in urgency bands
+   (48 hours / this week / later / no deadline / closed); detail slides in from the right. */
+:root {
+  --bg: #f3f5f8; --surface: #ffffff; --sunken: #e9edf3; --line: #d7dde6;
+  --ink: #141b26; --ink-2: #4a5567; --ink-3: #78839a;
+  --accent: #1f4fd1; --accent-ink: #ffffff; --accent-soft: #e4ebfc;
+  --crit: #c22b2b; --crit-soft: #fbe6e5; --warn: #a96300; --warn-soft: #fdf0dc; --ok: #1d7a47; --ok-soft: #e1f3e8;
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f131a; --surface: #171c25; --sunken: #1e2430; --line: #2b3342;
+  --ink: #e8ecf2; --ink-2: #aab3c2; --ink-3: #7c879a;
+  --accent: #7c9ff5; --accent-ink: #0f131a; --accent-soft: #1c2945;
+  --crit: #f08080; --crit-soft: #3a1d1f; --warn: #e6b05a; --warn-soft: #36291a; --ok: #63c891; --ok-soft: #173023;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f131a; --surface: #171c25; --sunken: #1e2430; --line: #2b3342;
+  --ink: #e8ecf2; --ink-2: #aab3c2; --ink-3: #7c879a;
+  --accent: #7c9ff5; --accent-ink: #0f131a; --accent-soft: #1c2945;
+  --crit: #f08080; --crit-soft: #3a1d1f; --warn: #e6b05a; --warn-soft: #36291a; --ok: #63c891; --ok-soft: #173023;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num, .mono { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 16px; }
+
+/* Top bar */
+.top { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding-block: 12px; }
+.brand { font: 800 20px/1 var(--f-display); font-stretch: 80%; letter-spacing: .01em; text-transform: uppercase; margin: 0; }
+.brand small { display: block; font: 500 11px/1.4 var(--f-data); letter-spacing: .08em; color: var(--ink-3); text-transform: uppercase; margin-top: 3px; }
+.tabs { display: flex; gap: 2px; background: var(--sunken); padding: 3px; border-radius: 999px; }
+.tabs button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; color: var(--ink-2); cursor: pointer; font-weight: 500; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
+.top .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); padding: 8px 14px; border-radius: var(--r); font-weight: 600; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.quiet { border-color: var(--line); background: var(--surface); color: var(--ink); font-weight: 500; }
+.btn.danger { border-color: var(--crit); background: transparent; color: var(--crit); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+
+main { padding-block: 20px 56px; }
+.notice { padding: 10px 14px; border-radius: var(--r); background: var(--warn-soft); color: var(--ink); margin-bottom: 16px; border-left: 3px solid var(--warn); }
+
+/* Summary strip */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-bottom: 18px; }
+.stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; text-align: left; border: 0; cursor: pointer; }
+.stat:hover { background: var(--sunken); }
+.stat .k { font: 600 11px/1.3 var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.stat .v { font: 800 34px/1.05 var(--f-display); font-stretch: 85%; }
+.stat .s { font-size: 13px; color: var(--ink-2); }
+.stat.crit .v { color: var(--crit); } .stat.warn .v { color: var(--warn); }
+.stat.crit { box-shadow: inset 0 3px 0 var(--crit); } .stat.warn { box-shadow: inset 0 3px 0 var(--warn); }
+
+/* Filters */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.filters input[type=search] { flex: 1 1 240px; min-width: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); max-width: min(100%, 280px); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 7px 12px; cursor: pointer; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* Bands and rows */
+.band { margin-bottom: 20px; }
+.band h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; font: 700 13px/1.2 var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.band h2 .count { font: 500 12px var(--f-data); color: var(--ink-3); letter-spacing: 0; }
+.band.soon h2 { color: var(--crit); } .band.week h2 { color: var(--warn); }
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.row { display: grid; grid-template-columns: 4px 128px 170px minmax(0, 1fr) 128px 74px 120px; gap: 0 14px; align-items: center; padding: 11px 16px 11px 0; border-top: 1px solid var(--line); cursor: pointer; width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; }
+.row:first-child { border-top: 0; }
+.row:hover { background: var(--sunken); }
+.row .tick { align-self: stretch; margin: -11px 0; background: transparent; }
+.row.u-soon .tick { background: var(--crit); } .row.u-week .tick { background: var(--warn); }
+.row.u-closed { color: var(--ink-3); }
+.rfqno { font: 600 15px var(--f-data); }
+.newdot { display: inline-block; font: 700 10px/1 var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+.when { display: grid; line-height: 1.3; }
+.when .left { font-weight: 600; font-size: 14px; }
+.when .at { font-size: 12px; color: var(--ink-3); font-family: var(--f-data); }
+.u-soon .left { color: var(--crit); } .u-week .left { color: var(--warn); } .u-none .left, .u-closed .left { color: var(--ink-3); font-weight: 500; }
+.client { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font-size: 14px; }
+.client .title { display: block; color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.s-quoted { background: var(--ok-soft); color: var(--ok); }
+.pill.s-not-quoted { background: var(--crit-soft); color: var(--crit); }
+.pill.s-partially-quoted, .pill.s-qty-differs { background: var(--warn-soft); color: var(--warn); }
+.lines { font: 500 13px var(--f-data); color: var(--ink-2); text-align: right; }
+.amount { text-align: right; font: 600 14px var(--f-data); }
+.amount small { display: block; font: 400 11px var(--f-body); color: var(--ink-3); }
+.headrow { display: grid; grid-template-columns: 4px 128px 170px minmax(0, 1fr) 128px 74px 120px; gap: 0 14px; padding: 8px 16px 8px 0; font: 600 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--line); background: var(--sunken); }
+.headrow .r { text-align: right; }
+
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); padding: 40px 20px; text-align: center; color: var(--ink-2); }
+.empty h3 { font: 700 20px var(--f-display); margin: 0 0 6px; color: var(--ink); }
+.empty p { margin: 0 auto 16px; max-width: 46ch; }
+
+/* Detail drawer */
+.scrim { position: fixed; inset: 0; background: rgb(8 12 20 / .45); z-index: 20; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(920px, 100%); background: var(--bg); z-index: 21; overflow-y: auto; box-shadow: -8px 0 32px rgb(0 0 0 / .25); padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-inset-bottom, 0px) + 32px); }
+.drawer .wrap { display: grid; gap: 16px; }
+.drawer-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.drawer-head h2 { margin: 0; font: 800 30px/1.1 var(--f-display); font-stretch: 85%; }
+.drawer-head .close { margin-left: auto; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; margin: 0; }
+.facts dt { font: 600 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.facts dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.deadline-edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; }
+.deadline-edit label { font-weight: 600; }
+.deadline-edit input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.deadline-edit .src { color: var(--ink-3); font-size: 13px; }
+.spacer { flex: 1; }
+.tablebox { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font: 600 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); background: var(--sunken); white-space: nowrap; }
+td.n, th.n { text-align: right; font-family: var(--f-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.item { min-width: 260px; } td .desc { font-weight: 600; } td .long { color: var(--ink-2); font-size: 13px; white-space: pre-line; max-width: 52ch; }
+tfoot td { font-weight: 700; border-bottom: 0; }
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--crit); }
+
+/* History */
+.hist-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-bottom: 14px; }
+.hist-stats div { background: var(--surface); padding: 12px 16px; }
+.hist-stats .k { font: 600 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.hist-stats .v { font: 700 22px var(--f-data); }
+a.link, button.link { color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; font: 600 14px var(--f-data); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Add files */
+.drop { border: 2px dashed var(--line); border-radius: 12px; background: var(--surface); padding: 36px 20px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop h3 { margin: 0; font: 700 22px var(--f-display); font-stretch: 90%; }
+.drop p { margin: 0; color: var(--ink-2); max-width: 52ch; }
+.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 18px; }
+.how section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+.how h4 { margin: 0 0 6px; font: 700 15px var(--f-display); }
+.how p, .how ol { margin: 0; color: var(--ink-2); font-size: 14px; padding-left: 0; }
+.how ol { padding-left: 18px; }
+.log { margin-top: 16px; display: grid; gap: 6px; }
+.log div { padding: 8px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
+.log .ok { border-left: 3px solid var(--ok); } .log .bad { border-left: 3px solid var(--crit); }
+
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: var(--r); z-index: 30; max-width: calc(100% - 32px); font-weight: 500; }
+
+@media (max-width: 860px) {
+  .strip, .hist-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .headrow { display: none; }
+  .row { grid-template-columns: 4px minmax(0, 1fr) auto; grid-template-areas: "t no amt" "t when pill" "t cl lines"; gap: 4px 12px; }
+  .row .tick { grid-area: t; } .row .c-no { grid-area: no; } .row .when { grid-area: when; } .row .client { grid-area: cl; }
+  .row .c-pill { grid-area: pill; text-align: right; } .row .lines { grid-area: lines; } .row .amount { grid-area: amt; }
+  .top .actions { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .drawer { animation: slide .18s ease-out; }
+  @keyframes slide { from { transform: translateX(24px); opacity: .6; } }
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <h1 class="brand">RFQ Platform<small>Exiros RFQs · SAR</small></h1>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button id="tab-rfqs" role="tab" aria-selected="true" data-tab="rfqs">RFQs</button>
+      <button id="tab-history" role="tab" aria-selected="false" data-tab="history">Price history</button>
+      <button id="tab-add" role="tab" aria-selected="false" data-tab="add">Add reports</button>
+    </nav>
+    <div class="actions">
+      <button class="btn quiet" id="export-all" type="button">Download Excel</button>
+      <button class="btn" id="add-btn" type="button">Add quotation reports</button>
+      <input id="file-input" type="file" accept=".xls,.xlsx" multiple hidden>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="notice" class="notice" hidden></div>
+
+  <section id="view-rfqs">
+    <div class="strip" id="strip">
+      <button class="stat" id="stat-soon" data-jump="open"><span class="k">Closing within 48 h, not fully quoted</span><span class="v" id="v-soon">–</span><span class="s">act on these first</span></button>
+      <button class="stat" id="stat-week" data-jump="open"><span class="k">Closing within 7 days</span><span class="v" id="v-week">–</span><span class="s" id="s-week">open RFQs</span></button>
+      <button class="stat" id="stat-nq" data-jump="notquoted"><span class="k">Open, not fully quoted</span><span class="v" id="v-nq">–</span><span class="s" id="s-nq">of – open</span></button>
+      <button class="stat" id="stat-new" data-jump="new"><span class="k">New since you last looked</span><span class="v" id="v-new">–</span><span class="s" id="s-new">quoted value open: – SAR</span></button>
+    </div>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search RFQ no., client, item, brand…" aria-label="Search RFQs">
+      <select id="f-status" aria-label="Status">
+        <option value="">Any status</option><option>Not quoted</option><option>Partially quoted</option><option>Quoted</option>
+      </select>
+      <select id="f-client" aria-label="Client"><option value="">Any client</option></select>
+      <div class="seg" role="group" aria-label="Show">
+        <button id="show-open" aria-pressed="true" data-show="open">Open</button>
+        <button id="show-new" aria-pressed="false" data-show="new">New</button>
+        <button id="show-closed" aria-pressed="false" data-show="closed">Closed</button>
+        <button id="show-all" aria-pressed="false" data-show="all">All</button>
+      </div>
+    </div>
+    <div id="bands"></div>
+  </section>
+
+  <section id="view-history" hidden>
+    <div class="filters">
+      <input type="search" id="hq" placeholder="Search an item, e.g. monitor, envelopes, Logitech" aria-label="Search items">
+    </div>
+    <div id="history"></div>
+  </section>
+
+  <section id="view-add" hidden>
+    <div class="drop" id="drop">
+      <h3>Drop quotation reports here</h3>
+      <p>The <span class="mono">quotationsReport.xls</span> files you download from Exiros, one per RFQ. Select or drop many at once. The RFQ number comes from the file name.</p>
+      <button class="btn" id="add-btn-2" type="button">Choose files</button>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="how">
+      <section>
+        <h4>Quoted and not quoted</h4>
+        <p>Lines with a unit price count as quoted. An RFQ with no prices shows as <span class="pill s-not-quoted">Not quoted</span>; some prices, <span class="pill s-partially-quoted">Partially quoted</span>.</p>
+      </section>
+      <section>
+        <h4>Deadlines</h4>
+        <p>The report file has no closing date. Open an RFQ and set its deadline once; the board then sorts and colours it.</p>
+      </section>
+      <section>
+        <h4>Updating an RFQ</h4>
+        <p>Adding a newer report for the same RFQ replaces its lines and keeps the deadline you set.</p>
+      </section>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-modal="true" role="dialog" aria-labelledby="d-title"></aside>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ---------- Report parsing (Exiros "quotationsReport" export) ---------- */
+// PARSER-START
+const HEADER_KEYS = {
+  "#": "line", "Description": "description", "Long Description": "longDescription", "Client": "client",
+  "Requested quantity": "requestedQty", "Unit of measure": "uom", "Date needed": "dateNeeded",
+  "Unit price": "unitPrice", "Quoted quantity": "quotedQty", "Delivery time": "deliveryDays",
+  "Brand": "brand", "Notes": "notes",
+};
+function rfqFromFilename(name) {
+  const m = /(\d{5,})_quotationsReport/i.exec(name) || /\d{6,}/.exec(name);
+  return m ? (m[1] || m[0]) : null;
+}
+function toNum(v) {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const n = parseFloat(String(v).replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : null;
+}
+function toText(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s ? s : null;
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function toIsoDate(v, ssf) {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number" && ssf) { const d = ssf.parse_date_code(v); return d ? `${d.y}-${pad(d.m)}-${pad(d.d)}` : null; }
+  if (v instanceof Date) return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v).trim()); // the portal writes MM/DD/YYYY
+  return m ? `${m[3]}-${pad(m[1])}-${pad(m[2])}` : null;
+}
+function lineStatus(l) {
+  if (l.unitPrice === null || l.unitPrice === 0) return "Not quoted";
+  if (l.quotedQty !== null && l.requestedQty !== null && l.quotedQty !== l.requestedQty) return "Qty differs";
+  return "Quoted";
+}
+function parseRows(rows, filename, ssf) {
+  const rfq = rfqFromFilename(filename);
+  if (!rfq) throw new Error("No RFQ number in the file name. Keep names like 5400796_quotationsReport.xls.");
+  let headerAt = -1;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const cells = new Set((rows[i] || []).map(c => String(c ?? "").trim()));
+    if (cells.has("#") && cells.has("Description") && cells.has("Unit price")) { headerAt = i; break; }
+  }
+  if (headerAt < 0) throw new Error("This doesn't look like an Exiros quotations report (no #, Description, Unit price columns).");
+  const cols = {};
+  rows[headerAt].forEach((c, i) => { const key = HEADER_KEYS[String(c ?? "").trim()]; if (key && !(key in cols)) cols[key] = i; });
+  const get = (r, k) => (k in cols ? r[cols[k]] : null);
+  const lines = [];
+  for (const r of rows.slice(headerAt + 1)) {
+    if (!r || toText(get(r, "line")) === null) continue;
+    const l = {
+      line: toNum(get(r, "line")), description: toText(get(r, "description")), longDescription: toText(get(r, "longDescription")),
+      client: toText(get(r, "client")), requestedQty: toNum(get(r, "requestedQty")), uom: toText(get(r, "uom")),
+      dateNeeded: toIsoDate(get(r, "dateNeeded"), ssf), unitPrice: toNum(get(r, "unitPrice")), quotedQty: toNum(get(r, "quotedQty")),
+      deliveryDays: toNum(get(r, "deliveryDays")), brand: toText(get(r, "brand")), notes: toText(get(r, "notes")),
+    };
+    l.lineTotal = l.unitPrice === null ? null : Math.round(l.unitPrice * (l.quotedQty ?? l.requestedQty ?? 0) * 100) / 100;
+    l.status = lineStatus(l);
+    lines.push(l);
+  }
+  if (!lines.length) throw new Error("The report has no item lines.");
+  const quoted = lines.filter(l => l.status !== "Not quoted").length;
+  const needed = lines.map(l => l.dateNeeded).filter(Boolean).sort();
+  return {
+    rfq, lines, linesCount: lines.length, quotedLines: quoted,
+    status: quoted === 0 ? "Not quoted" : quoted === lines.length ? "Quoted" : "Partially quoted",
+    total: Math.round(lines.reduce((s, l) => s + (l.lineTotal || 0), 0) * 100) / 100,
+    client: [...new Set(lines.map(l => l.client).filter(Boolean))].join("; "),
+    earliestNeeded: needed[0] || null, sourceFile: filename,
+  };
+}
+// PARSER-END
+
+/* ---------- Time helpers (deadlines are local times, "YYYY-MM-DDTHH:MM") ---------- */
+const SOON_MS = 48 * 3600e3, WEEK_MS = 7 * 86400e3;
+function parseLocal(s) { if (!s) return null; const d = new Date(s.length === 10 ? s + "T23:59" : s); return isNaN(d) ? null : d; }
+function urgency(r, now) {
+  const d = parseLocal(r.deadline); if (!d) return "none";
+  const ms = d - now; if (ms < 0) return "closed"; if (ms <= SOON_MS) return "soon"; if (ms <= WEEK_MS) return "week"; return "later";
+}
+function timeLeft(r, now) {
+  const d = parseLocal(r.deadline); if (!d) return "No deadline set";
+  const ms = d - now, plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  if (ms < 0) { const days = Math.floor(-ms / 86400e3); return days === 0 ? "Closed today" : `Closed ${plural(days, "day")} ago`; }
+  const h = Math.floor(ms / 3600e3); if (h < 1) return "Under 1 hour left"; if (h < 24) return `${plural(h, "hour")} left`;
+  return `${plural(Math.floor(ms / 86400e3), "day")} left`;
+}
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(s) { if (!s) return "–"; const [y, m, d] = s.slice(0, 10).split("-"); return `${d} ${MONTHS[+m - 1]} ${y}`; }
+function fmtDateTime(s) { return s ? fmtDate(s) + (s.length > 10 ? ", " + s.slice(11, 16) : "") : "–"; }
+function nowStamp() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+const sar = v => v === null || v === undefined ? "–" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const qty = v => v === null || v === undefined ? "–" : Number(v).toLocaleString("en-US", { maximumFractionDigits: 3 });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const slug = s => String(s).toLowerCase().replace(/\s+/g, "-");
+
+/* ---------- State ---------- */
+const state = { rfqs: new Map(), loaded: false, tab: "rfqs", show: "open", openRfq: null, confirmDelete: false };
+let db = null, canWrite = true, downloads = null;
+const $ = id => document.getElementById(id);
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 3800); }
+function notice(msg) { const n = $("notice"); n.textContent = msg || ""; n.hidden = !msg; }
+
+/* ---------- Rendering ---------- */
+function allRows() { const now = new Date(); return [...state.rfqs.values()].map(r => ({ ...r, u: urgency(r, now), left: timeLeft(r, now) })); }
+
+function renderBoard() {
+  const rows = allRows();
+  const open = rows.filter(r => r.u !== "closed"), notDone = r => r.status !== "Quoted";
+  const soon = open.filter(r => r.u === "soon" && notDone(r)).length;
+  const week = open.filter(r => r.u === "soon" || r.u === "week").length;
+  const nq = open.filter(notDone).length, fresh = rows.filter(r => !r.seen).length;
+  $("v-soon").textContent = soon; $("stat-soon").className = "stat" + (soon ? " crit" : "");
+  $("v-week").textContent = week; $("stat-week").className = "stat" + (week ? " warn" : "");
+  $("v-nq").textContent = nq; $("s-nq").textContent = `of ${open.length} open`;
+  $("v-new").textContent = fresh; $("s-new").textContent = `quoted value open: ${sar(open.reduce((s, r) => s + (r.total || 0), 0))} SAR`;
+
+  const clientSel = $("f-client"), keep = clientSel.value;
+  const clients = [...new Set(rows.flatMap(r => (r.client || "").split(";").map(c => c.trim()).filter(Boolean)))].sort();
+  clientSel.innerHTML = `<option value="">Any client</option>` + clients.map(c => `<option${c === keep ? " selected" : ""}>${esc(c)}</option>`).join("");
+
+  let shown = state.show === "open" ? open : state.show === "closed" ? rows.filter(r => r.u === "closed") : state.show === "new" ? rows.filter(r => !r.seen) : rows;
+  const status = $("f-status").value, client = clientSel.value, q = $("q").value.trim().toLowerCase();
+  if (status) shown = shown.filter(r => r.status === status);
+  if (client) shown = shown.filter(r => (r.client || "").includes(client));
+  if (q) shown = shown.filter(r => [r.rfq, r.client, r.title, ...r.lines.flatMap(l => [l.description, l.longDescription, l.brand, l.notes])].some(v => (v || "").toLowerCase().includes(q)));
+
+  const bands = [["soon", "Closing within 48 hours"], ["week", "Closing this week"], ["later", "Later"], ["none", "No deadline set"], ["closed", "Closed"]];
+  const box = $("bands");
+  if (!state.loaded) { box.innerHTML = `<div class="empty"><h3>Loading your RFQs…</h3></div>`; return; }
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty"><h3>No RFQs yet</h3><p>Add the quotation report files you download from Exiros. Every RFQ, quoted or not, appears here sorted by deadline.</p><button class="btn" type="button" data-action="add">Add quotation reports</button></div>`;
+    return;
+  }
+  if (!shown.length) { box.innerHTML = `<div class="empty"><h3>Nothing matches</h3><p>Try another filter, or show All.</p></div>`; return; }
+  const head = `<div class="headrow"><span></span><span>RFQ</span><span>Deadline</span><span>Client</span><span>Status</span><span class="r">Lines</span><span class="r">Total SAR</span></div>`;
+  box.innerHTML = bands.map(([key, label]) => {
+    let items = shown.filter(r => r.u === key);
+    if (!items.length) return "";
+    const t = r => parseLocal(r.deadline)?.getTime() ?? 0;
+    items.sort(key === "closed" ? (a, b) => t(b) - t(a) : key === "none" ? (a, b) => b.rfq.localeCompare(a.rfq) : (a, b) => t(a) - t(b));
+    return `<section class="band ${key}"><h2>${label}<span class="count">${items.length}</span></h2><div class="list">${head}${items.map(rowHtml).join("")}</div></section>`;
+  }).join("");
+}
+
+function rowHtml(r) {
+  return `<button class="row u-${r.u}" type="button" data-rfq="${esc(r.rfq)}">
+    <span class="tick"></span>
+    <span class="c-no"><span class="rfqno">${esc(r.rfq)}</span>${r.seen ? "" : `<span class="newdot">New</span>`}</span>
+    <span class="when"><span class="left">${esc(r.left)}</span><span class="at">${r.deadline ? esc(fmtDateTime(r.deadline)) : "set one in the RFQ"}</span></span>
+    <span class="client">${r.title ? `<span class="title">${esc(r.title)}</span>` : ""}${esc(r.client || "–")}</span>
+    <span class="c-pill"><span class="pill s-${slug(r.status)}">${esc(r.status)}</span></span>
+    <span class="lines">${r.quotedLines}/${r.linesCount}</span>
+    <span class="amount">${sar(r.total)}</span>
+  </button>`;
+}
+
+function renderDrawer() {
+  const drawer = $("drawer"), scrim = $("scrim");
+  const base = state.openRfq && state.rfqs.get(state.openRfq);
+  if (!base) { drawer.hidden = scrim.hidden = true; return; }
+  const now = new Date(), r = { ...base, u: urgency(base, now), left: timeLeft(base, now) };
+  const dl = r.deadline || "";
+  drawer.innerHTML = `<div class="wrap">
+    <div class="drawer-head">
+      <div><h2 id="d-title" class="mono">RFQ ${esc(r.rfq)}</h2>
+        <div style="margin-top:6px"><span class="pill s-${slug(r.status)}">${esc(r.status)}</span> <span class="when u-${r.u}" style="display:inline"><span class="left">${esc(r.left)}</span></span></div></div>
+      <button class="btn quiet close" type="button" data-action="close">Close</button>
+    </div>
+    <dl class="facts">
+      <div><dt>Deadline</dt><dd>${esc(fmtDateTime(r.deadline))}</dd></div>
+      <div><dt>Client</dt><dd>${esc(r.client || "–")}</dd></div>
+      <div><dt>Lines quoted</dt><dd>${r.quotedLines} of ${r.linesCount}</dd></div>
+      <div><dt>Total quoted</dt><dd class="mono">${sar(r.total)} SAR</dd></div>
+      <div><dt>Earliest date needed</dt><dd>${esc(fmtDate(r.earliestNeeded))}</dd></div>
+      <div><dt>Added / updated</dt><dd>${esc(fmtDateTime(r.firstSeen))} / ${esc(fmtDateTime(r.lastUpdated))}</dd></div>
+    </dl>
+    <form class="deadline-edit" id="deadline-form">
+      <label for="dl-date">Deadline</label>
+      <input id="dl-date" type="date" value="${esc(dl.slice(0, 10))}" ${canWrite ? "" : "disabled"}>
+      <input id="dl-time" type="time" value="${esc(dl.slice(11, 16) || "")}" ${canWrite ? "" : "disabled"} aria-label="Deadline time">
+      <button class="btn small" type="submit" ${canWrite ? "" : "disabled"}>Save deadline</button>
+      ${dl ? `<button class="btn small quiet" type="button" data-action="clear-deadline" ${canWrite ? "" : "disabled"}>Clear</button>` : ""}
+      <span class="spacer"></span>
+      <button class="btn small ghost" type="button" data-action="export-one">Download this RFQ</button>
+    </form>
+    <div class="tablebox"><table>
+      <thead><tr><th>#</th><th>Item</th><th class="n">Requested</th><th>UoM</th><th>Needed</th><th class="n">Our unit price</th><th class="n">Quoted qty</th><th class="n">Line total</th><th class="n">Delivery (days)</th><th>Brand</th><th>Notes</th><th>Status</th></tr></thead>
+      <tbody>${r.lines.map(l => `<tr>
+        <td class="n">${qty(l.line)}</td>
+        <td class="item"><div class="desc">${esc(l.description || "–")}</div>${l.longDescription && l.longDescription !== l.description ? `<div class="long">${esc(l.longDescription)}</div>` : ""}</td>
+        <td class="n">${qty(l.requestedQty)}</td><td>${esc(l.uom || "–")}</td><td style="white-space:nowrap">${esc(fmtDate(l.dateNeeded))}</td>
+        <td class="n">${sar(l.unitPrice)}</td><td class="n">${qty(l.quotedQty)}</td><td class="n">${sar(l.lineTotal)}</td>
+        <td class="n">${qty(l.deliveryDays)}</td><td>${esc(l.brand || "–")}</td><td>${esc(l.notes || "–")}</td>
+        <td><span class="pill s-${slug(l.status)}">${esc(l.status)}</span></td></tr>`).join("")}</tbody>
+      <tfoot><tr><td colspan="7">Total (SAR)</td><td class="n">${sar(r.total)}</td><td colspan="4"></td></tr></tfoot>
+    </table></div>
+    <div class="confirm">${!canWrite ? "" : state.confirmDelete
+      ? `Remove RFQ ${esc(r.rfq)} and its lines from the platform? <button class="btn small danger" type="button" data-action="delete-yes">Remove</button><button class="btn small quiet" type="button" data-action="delete-no">Keep</button>`
+      : `<button class="btn small quiet" type="button" data-action="delete-ask">Remove this RFQ</button>`}</div>
+  </div>`;
+  drawer.hidden = scrim.hidden = false;
+}
+
+function renderHistory() {
+  const q = $("hq").value.trim().toLowerCase(), box = $("history");
+  if (!q) { box.innerHTML = `<div class="empty"><h3>What did you quote before?</h3><p>Search an item to see every price you gave for it, newest RFQ first.</p></div>`; return; }
+  const hits = [];
+  for (const r of state.rfqs.values()) for (const l of r.lines)
+    if ([l.description, l.longDescription, l.brand, l.notes].some(v => (v || "").toLowerCase().includes(q))) hits.push({ r, l });
+  const when = h => h.r.deadline || h.r.firstSeen || "";
+  hits.sort((a, b) => when(b).localeCompare(when(a)));
+  if (!hits.length) { box.innerHTML = `<div class="empty"><h3>Nothing found</h3><p>No item matches “${esc(q)}”.</p></div>`; return; }
+  const prices = hits.map(h => h.l.unitPrice).filter(p => p !== null && p > 0);
+  box.innerHTML = (prices.length ? `<div class="hist-stats">
+      <div><div class="k">Times quoted</div><div class="v">${prices.length}</div></div>
+      <div><div class="k">Most recent</div><div class="v">${sar(prices[0])}</div></div>
+      <div><div class="k">Lowest</div><div class="v">${sar(Math.min(...prices))}</div></div>
+      <div><div class="k">Highest</div><div class="v">${sar(Math.max(...prices))}</div></div></div>` : "")
+    + `<div class="tablebox"><table><thead><tr><th>RFQ</th><th>Deadline</th><th>Item</th><th class="n">Qty</th><th>UoM</th><th class="n">Unit price SAR</th><th class="n">Delivery (days)</th><th>Brand</th></tr></thead><tbody>
+      ${hits.map(({ r, l }) => `<tr><td><button class="link" type="button" data-rfq="${esc(r.rfq)}">${esc(r.rfq)}</button></td><td style="white-space:nowrap">${esc(fmtDateTime(r.deadline))}</td>
+        <td><div class="desc">${esc(l.description || "–")}</div></td><td class="n">${qty(l.quotedQty ?? l.requestedQty)}</td><td>${esc(l.uom || "–")}</td>
+        <td class="n">${sar(l.unitPrice)}</td><td class="n">${qty(l.deliveryDays)}</td><td>${esc(l.brand || "–")}</td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+
+function render() {
+  for (const t of ["rfqs", "history", "add"]) { $("view-" + t).hidden = state.tab !== t; $("tab-" + t).setAttribute("aria-selected", String(state.tab === t)); }
+  for (const b of document.querySelectorAll("[data-show]")) b.setAttribute("aria-pressed", String(b.dataset.show === state.show));
+  renderBoard(); renderHistory(); renderDrawer();
+}
+
+/* ---------- Writes ---------- */
+async function saveRfq(rfq, body) {
+  state.rfqs.set(rfq, body);
+  if (db) await db.collection("rfqs").doc(rfq).set(body);
+}
+async function patchRfq(rfq, patch) {
+  const cur = state.rfqs.get(rfq); if (!cur) return;
+  state.rfqs.set(rfq, { ...cur, ...patch });
+  if (db) await db.collection("rfqs").doc(rfq).update(patch);
+}
+function writeFailed(e) {
+  if (e && e.code === "invalid_argument") { canWrite = false; notice("You can view these RFQs but not change them."); }
+  else if (e && e.code === "quota_exceeded") notice("Storage is full. Remove old closed RFQs to add more.");
+  else toast("Couldn't save. Check your connection and try again.");
+  render();
+}
+
+async function importFiles(files) {
+  if (!window.XLSX) { toast("The spreadsheet reader didn't load. Reload the page and try again."); return; }
+  if (!canWrite) { toast("You can view these RFQs but not add to them."); return; }
+  const log = $("log"); let added = 0, updated = 0;
+  for (const file of files) {
+    const line = document.createElement("div");
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null, blankrows: false });
+      const parsed = parseRows(rows, file.name, XLSX.SSF);
+      const prev = state.rfqs.get(parsed.rfq);
+      const body = { ...parsed, title: prev?.title ?? null, deadline: prev?.deadline ?? null, deadlineSource: prev?.deadlineSource ?? null,
+        firstSeen: prev?.firstSeen ?? nowStamp(), lastUpdated: nowStamp(), seen: prev?.seen ?? false };
+      await saveRfq(parsed.rfq, body);
+      prev ? updated++ : added++;
+      line.className = "ok";
+      line.textContent = `RFQ ${parsed.rfq}: ${prev ? "updated" : "added"} · ${parsed.linesCount} lines, ${parsed.status.toLowerCase()}, ${sar(parsed.total)} SAR`;
+    } catch (e) {
+      line.className = "bad";
+      line.textContent = `${file.name}: ${e && e.message ? e.message : "couldn't be read"}`;
+      if (e && e.code) { writeFailed(e); }
+    }
+    log.prepend(line);
+  }
+  if (added || updated) toast(`${added} RFQ${added === 1 ? "" : "s"} added, ${updated} updated`);
+  render();
+}
+
+/* ---------- Excel export ---------- */
+async function exportExcel(only) {
+  if (!window.XLSX) { toast("The spreadsheet tool didn't load. Reload the page and try again."); return; }
+  if (!downloads) { toast("Downloads aren't available in this view. Open the page on claude.ai."); return; }
+  const now = new Date();
+  const list = [...state.rfqs.values()].filter(r => !only || r.rfq === only)
+    .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
+  if (!list.length) { toast("There are no RFQs to export yet."); return; }
+  const summary = list.map(r => ({ "RFQ No.": r.rfq, "Deadline": r.deadline ? fmtDateTime(r.deadline) : "", "Time left": timeLeft(r, now),
+    "Status": r.status, "Client": r.client, "Lines": r.linesCount, "Lines quoted": r.quotedLines, "Total quoted (SAR)": r.total,
+    "Earliest date needed": r.earliestNeeded || "", "Source file": r.sourceFile || "" }));
+  const lines = list.flatMap(r => r.lines.map(l => ({ "RFQ No.": r.rfq, "Deadline": r.deadline ? fmtDateTime(r.deadline) : "", "#": l.line,
+    "Description": l.description, "Long description": l.longDescription, "Client": l.client, "Requested qty": l.requestedQty, "UoM": l.uom,
+    "Date needed": l.dateNeeded || "", "Our unit price (SAR)": l.unitPrice, "Quoted qty": l.quotedQty, "Line total (SAR)": l.lineTotal,
+    "Delivery (days)": l.deliveryDays, "Brand": l.brand, "Notes": l.notes, "Status": l.status })));
+  const wb = XLSX.utils.book_new();
+  const s1 = XLSX.utils.json_to_sheet(summary), s2 = XLSX.utils.json_to_sheet(lines);
+  s1["!cols"] = [12, 18, 16, 16, 44, 7, 12, 18, 18, 30].map(w => ({ wch: w }));
+  s2["!cols"] = [12, 18, 5, 32, 50, 36, 12, 12, 12, 18, 10, 16, 14, 16, 30, 12].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, s1, "RFQs"); XLSX.utils.book_append_sheet(wb, s2, "Lines");
+  const data = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const name = only ? `RFQ_${only}.xlsx` : `Exiros_RFQs_${nowStamp().slice(0, 10)}.xlsx`;
+  try { await downloads.save({ filename: name, data }); toast(`Saved ${name}`); }
+  catch (e) { if (e && e.code !== "declined") toast(e && e.code === "rate_limited" ? "A download is already waiting for your answer." : "The download didn't go through."); }
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button, [data-rfq]"); if (!t) return;
+  if (t.dataset.tab) { state.tab = t.dataset.tab; render(); return; }
+  if (t.dataset.show) { state.show = t.dataset.show; render(); return; }
+  if (t.dataset.jump) {
+    state.tab = "rfqs"; $("f-status").value = "";
+    state.show = t.dataset.jump === "new" ? "new" : "open";
+    if (t.dataset.jump === "notquoted") $("f-status").value = "Not quoted";
+    render(); return;
+  }
+  if (t.dataset.rfq) {
+    state.openRfq = t.dataset.rfq; state.confirmDelete = false; render();
+    const r = state.rfqs.get(t.dataset.rfq);
+    if (r && !r.seen && canWrite) patchRfq(r.rfq, { seen: true }).catch(writeFailed);
+    return;
+  }
+  switch (t.dataset.action || t.id) {
+    case "add": case "add-btn": case "add-btn-2": $("file-input").click(); break;
+    case "export-all": exportExcel(null); break;
+    case "export-one": exportExcel(state.openRfq); break;
+    case "close": state.openRfq = null; render(); break;
+    case "clear-deadline": patchRfq(state.openRfq, { deadline: null, deadlineSource: null }).then(() => toast("Deadline cleared"), writeFailed); render(); break;
+    case "delete-ask": state.confirmDelete = true; render(); break;
+    case "delete-no": state.confirmDelete = false; render(); break;
+    case "delete-yes": {
+      const id = state.openRfq; state.rfqs.delete(id); state.openRfq = null; render();
+      try { if (db) await db.collection("rfqs").doc(id).delete(); toast(`RFQ ${id} removed`); } catch (err) { writeFailed(err); }
+      break;
+    }
+  }
+});
+$("scrim").addEventListener("click", () => { state.openRfq = null; render(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && state.openRfq) { state.openRfq = null; render(); } });
+document.addEventListener("submit", e => {
+  if (e.target.id !== "deadline-form") return;
+  e.preventDefault();
+  const d = $("dl-date").value; if (!d) { toast("Pick a date first."); return; }
+  const value = `${d}T${$("dl-time").value || "23:59"}`;
+  patchRfq(state.openRfq, { deadline: value, deadlineSource: "manual" }).then(() => toast("Deadline saved"), writeFailed);
+  render();
+});
+$("file-input").addEventListener("change", e => { const files = [...e.target.files]; e.target.value = ""; if (files.length) { state.tab = "add"; render(); importFiles(files); } });
+for (const id of ["q", "hq"]) $(id).addEventListener("input", render);
+for (const id of ["f-status", "f-client"]) $(id).addEventListener("change", render);
+const drop = $("drop");
+for (const ev of ["dragenter", "dragover"]) document.addEventListener(ev, e => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); drop.classList.add("over"); } });
+document.addEventListener("dragleave", e => { if (!e.relatedTarget) drop.classList.remove("over"); });
+document.addEventListener("drop", e => {
+  if (!e.dataTransfer?.files?.length) return;
+  e.preventDefault(); drop.classList.remove("over");
+  state.tab = "add"; render(); importFiles([...e.dataTransfer.files]);
+});
+setInterval(() => { if (state.loaded) renderBoard(); }, 60e3); // keep "time left" current
+
+/* ---------- Boot ---------- */
+render();
+(async () => {
+  const claude = window.claude;
+  if (!claude || !claude.use) { state.loaded = true; notice("Open this page on claude.ai to save RFQs. Files you add here are only kept until you close the page."); render(); return; }
+  const [store, user, dl] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("downloads")]);
+  downloads = dl;
+  if (user && user.can) { try { if ((await user.can("data.write")) === false) canWrite = false; } catch {} }
+  if (!store) { state.loaded = true; notice("Saving isn't available in this view. Files you add are only kept until you close the page."); render(); return; }
+  db = store;
+  if (!canWrite) notice("You can view these RFQs but not change them.");
+  db.collection("rfqs").onSnapshot(snap => {
+    state.rfqs = new Map(snap.docs.filter(d => d.exists).map(d => [d.id, { lines: [], ...d.data(), rfq: d.id }]));
+    state.loaded = true; render();
+  }, () => { state.loaded = true; notice("Your saved RFQs couldn't be loaded. Reload the page to try again."); render(); });
+})();
+</script>
