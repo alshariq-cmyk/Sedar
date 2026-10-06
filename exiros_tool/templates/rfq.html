@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill %}
+{% block title %}RFQ {{ r.rfq }}{% endblock %}
+{% block content %}
+<p><a href="/">← All RFQs</a></p>
+<h1>RFQ {{ r.rfq }} {{ pill(r.status) }} {% if r.is_new %}<span class="pill new">New</span>{% endif %}</h1>
+{% if r.title %}<p class="sub">{{ r.title }}</p>{% endif %}
+<div class="card" style="margin: 16px 0">
+  <dl class="facts">
+    <div><dt>Deadline</dt><dd>{{ r.deadline|datetime }} <span class="left u-{{ r.urgency }}">· {{ r.time_left }}</span></dd></div>
+    <div><dt>Client</dt><dd>{{ r.client or '–' }}</dd></div>
+    <div><dt>Lines quoted</dt><dd>{{ r.quoted_lines }} of {{ r.lines }}</dd></div>
+    <div><dt>Total quoted</dt><dd>{{ r.total|sar }} SAR</dd></div>
+    <div><dt>Earliest date needed</dt><dd>{{ r.earliest_needed|date }}</dd></div>
+    <div><dt>First seen / last updated</dt><dd>{{ r.first_seen|datetime }} / {{ r.last_updated|datetime }}</dd></div>
+  </dl>
+  <form method="post" action="/rfq/{{ r.rfq }}/deadline" class="row" style="margin-top:16px">
+    <label>{{ 'Change' if r.deadline else 'Set' }} deadline
+      <input type="date" name="date" value="{{ (r.deadline or '')[:10] }}">
+      <input type="time" name="time" value="{{ (r.deadline or '')[11:16] }}">
+    </label>
+    <button class="btn secondary small">Save</button>
+    {% if r.deadline_source %}<span class="muted">from {{ 'Exiros' if r.deadline_source == 'portal' else 'you' }}</span>{% endif %}
+    <span class="spacer"></span>
+    <a href="/export.xlsx?rfq={{ r.rfq }}">Download this RFQ as Excel</a>
+  </form>
+</div>
+<div class="card table-wrap">
+<table>
+  <tr><th>#</th><th>Item</th><th class="n">Requested</th><th>UoM</th><th>Date needed</th><th class="n">Our unit price</th><th class="n">Quoted qty</th><th class="n">Line total</th><th class="n">Delivery (days)</th><th>Brand</th><th>Notes</th><th>Status</th></tr>
+  {% for l in lines %}
+  <tr>
+    <td>{{ l.line }}</td>
+    <td class="wrap"><strong>{{ l.description }}</strong>{% if l.long_description and l.long_description.strip() != l.description %}<div class="longdesc">{{ l.long_description.strip() }}</div>{% endif %}</td>
+    <td class="n">{{ l.requested_qty|num }}</td><td>{{ l.uom or '–' }}</td><td>{{ l.date_needed|date }}</td>
+    <td class="n">{{ l.unit_price|sar }}</td><td class="n">{{ l.quoted_qty|num }}</td><td class="n">{{ l.line_total|sar }}</td>
+    <td class="n">{{ l.delivery_days|num }}</td><td>{{ l.brand or '–' }}</td><td class="wrap">{{ l.notes or '–' }}</td><td>{{ pill(l.status) }}</td>
+  </tr>
+  {% endfor %}
+  <tr><td colspan="7"><strong>Total (SAR)</strong></td><td class="n"><strong>{{ r.total|sar }}</strong></td><td colspan="4"></td></tr>
+</table>
+</div>
+{% endblock %}

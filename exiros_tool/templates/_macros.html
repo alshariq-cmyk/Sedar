@@ -1,0 +1,3 @@
+{% macro pill(status) -%}
+<span class="pill s-{{ status|lower|replace(' ', '-') }}">{{ status }}</span>
+{%- endmacro %}

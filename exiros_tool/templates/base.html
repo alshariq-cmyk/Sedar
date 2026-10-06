@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · RFQ Platform</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">RFQ Platform</a>
+    <nav>
+      <a href="/" class="{{ 'active' if page == 'dashboard' }}">RFQs</a>
+      <a href="/items" class="{{ 'active' if page == 'items' }}">Price history</a>
+      <a href="/import" class="{{ 'active' if page == 'import' }}">Add files</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  {% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
+  {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+  <div class="updatebar">
+    <span class="when">Last update from Exiros: <strong>{{ last_update_ago }}</strong>{% if last_update %} · {{ last_update.message }}{% endif %}</span>
+    <form method="post" action="/update"><button class="btn" {{ 'disabled' if updater.running }}>Update from Exiros</button></form>
+  </div>
+  <div class="card progress" id="progress" {% if not updater.running and not updater.result %}hidden{% endif %}>
+    <div class="step" id="progress-step">{{ updater.step }}</div>
+    <div class="log" id="progress-log"></div>
+  </div>
+{% block content %}{% endblock %}
+</main>
+<script>
+  // Show live progress while an update runs; reload the page when it finishes.
+  const box = document.getElementById("progress");
+  let wasRunning = {{ 'true' if updater.running else 'false' }};
+  async function poll() {
+    try {
+      const s = await (await fetch("/update/status")).json();
+      if (s.running) {
+        box.hidden = false;
+        document.getElementById("progress-step").textContent = s.step;
+        document.getElementById("progress-log").textContent = s.log.slice(-8).join("\n");
+        wasRunning = true;
+      } else if (wasRunning) {
+        const r = s.result || {};
+        location.href = "/?" + (r.ok ? "msg=" : "error=") + encodeURIComponent((r.ok ? "Update finished. " : "Update stopped: ") + (r.message || ""));
+        return;
+      } else {
+        box.hidden = true;
+      }
+    } catch (e) {}
+    if (wasRunning) setTimeout(poll, 1500);
+  }
+  if (wasRunning || location.search.includes("updating=1")) { wasRunning = true; poll(); }
+</script>
+</body>
+</html>

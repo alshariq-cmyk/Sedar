@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Price history{% endblock %}
+{% block content %}
+<h1>Price history</h1>
+<p class="sub">Search an item to see what you quoted for it before.</p>
+<form class="searchbar" method="get" action="/items">
+  <input type="search" name="q" value="{{ q }}" placeholder="e.g. monitor, envelopes, Logitech" autofocus>
+  <button class="btn">Search</button>
+</form>
+{% if stats %}
+<div class="grid kpis">
+  <div class="card kpi"><div class="label">Times quoted</div><div class="value">{{ stats.count }}</div></div>
+  <div class="card kpi"><div class="label">Most recent price</div><div class="value">{{ stats.last|sar }}</div><span class="delta muted">SAR</span></div>
+  <div class="card kpi"><div class="label">Lowest</div><div class="value">{{ stats.min|sar }}</div></div>
+  <div class="card kpi"><div class="label">Highest</div><div class="value">{{ stats.max|sar }}</div></div>
+</div>
+{% endif %}
+{% if q %}
+<div class="card table-wrap">
+{% if rows %}
+<table>
+  <tr><th>RFQ</th><th>Deadline</th><th>Item</th><th class="n">Qty</th><th>UoM</th><th class="n">Our unit price (SAR)</th><th class="n">Delivery (days)</th><th>Brand</th><th>Client</th></tr>
+  {% for l in rows %}
+  <tr><td><a href="/rfq/{{ l.rfq }}">{{ l.rfq }}</a></td><td>{{ l.deadline|datetime }}</td><td class="wrap">{{ l.description }}</td>
+    <td class="n">{{ (l.quoted_qty or l.requested_qty)|num }}</td><td>{{ l.uom or '–' }}</td><td class="n">{{ l.unit_price|sar }}</td>
+    <td class="n">{{ l.delivery_days|num }}</td><td>{{ l.brand or '–' }}</td><td class="wrap">{{ l.client or '–' }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="empty">Nothing found for "{{ q }}".</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

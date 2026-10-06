@@ -57,14 +57,19 @@ pytest
 
 Code layout: `sedar/importer.py` (reading and mapping exports), `sedar/analytics.py` (metrics), `sedar/main.py` (web routes), `sedar/templates/` (pages). Chart.js is bundled in `sedar/static/vendor/` so the app works offline.
 
-## Exiros RFQ downloader (`exiros_tool/`)
+## RFQ Platform (`exiros_tool/`)
 
-A standalone tool the user runs on their own computer: they log in to the Exiros supplier portal in a normal browser window, and `exiros_fetch.py` walks the RFQ list, downloads each quotations report and builds the combined Excel. Portal selectors live in `exiros_tool/exiros_config.json`; `exiros_fetch.py capture` saves portal pages so they can be filled in. See `exiros_tool/HOW_TO_USE.txt`.
+A local dashboard of the RFQs that Exiros (a customer) sends through its supplier portal, with deadlines and our submitted quotes. It runs on the user's own Windows computer (`setup_windows.bat`, then `start_platform.bat`); see `exiros_tool/HOW_TO_USE.txt`.
 
-### Exiros RFQ quotations to Excel
+- **RFQs**: every RFQ, quoted and not quoted, sorted by submission deadline. Red means it closes within 48 hours, orange within 7 days. New RFQs are flagged until opened. Search and filter by status or client. Totals are in SAR.
+- **RFQ detail**: every line with our unit price, quoted quantity, line total, delivery days, brand and notes. The deadline can be set by hand if the portal doesn't give one.
+- **Price history**: what we quoted for an item before.
+- **Excel**: all RFQs, or one RFQ, as a formatted workbook.
+- **Update from Exiros**: runs only when clicked. It opens a fresh browser on the Exiros login page, waits for the user to log in, reads the RFQ list (numbers and deadlines) across pages, downloads each quotations report, saves it, then logs out and closes the browser. No login is kept. RFQs that are already closed and stored aren't downloaded again.
 
-`exiros_tool/rfq_to_excel.py` combines the `quotationsReport.xls` files exported from the Exiros supplier portal into one workbook with a **Summary** sheet (one row per RFQ: client, line counts, total quoted value, earliest date needed, longest delivery) and a **Lines** sheet (every line with our unit price, quoted quantity, line total, delivery days, brand, notes and a status: Quoted / Qty differs / Not quoted). The RFQ number is taken from the file name.
+Portal-specific selectors live in `exiros_tool/exiros_config.json`. They need filling in from a one-time look at the portal pages (`python exiros_fetch.py capture` saves them). Until then the Update button says so, and quotation report files can be added by hand on the **Add files** page.
 
 ```bash
-python exiros_tool/rfq_to_excel.py output/rfqs.xlsx path/to/exports/   # a folder, or list files
+cd exiros_tool && pip install -r requirements.txt && python app.py   # http://127.0.0.1:8765
+python exiros_tool/rfq_to_excel.py out.xlsx reports/               # convert report files without the platform
 ```

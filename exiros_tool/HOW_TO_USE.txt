@@ -1,26 +1,26 @@
-EXIROS RFQ DOWNLOADER - HOW TO USE
+RFQ PLATFORM - HOW TO USE
 
 ONE-TIME SETUP
-1. Install Python from https://www.python.org/downloads/ (tick "Add python.exe to PATH" during install).
-2. Install Google Chrome or use Microsoft Edge (already on Windows).
-3. Unzip this folder somewhere, e.g. Documents\exiros_tool.
-4. Double-click setup_windows.bat and wait until it says "Setup finished".
+1. Install Python from https://www.python.org/downloads/ (tick "Add python.exe to PATH").
+2. Unzip this folder, e.g. into Documents.
+3. Double-click setup_windows.bat and wait for "Setup finished".
 
-STEP 1 - TEACH IT THE PORTAL (once)
-1. Double-click capture_pages.bat. A browser window opens.
-2. Log in to Exiros as usual, then press Enter in the black window.
-3. In the browser, open your RFQ / quotations list. Press Enter in the black window to save it.
-4. Open one RFQ (the page with the quotations report download). Press Enter again.
-5. Type q and press Enter.
-6. Zip the folder captures\<today's date> and send it to Claude.
-   Claude fills in exiros_config.json and sends it back - put it in this folder.
+EVERY DAY
+1. Double-click start_platform.bat. The RFQ Platform opens in your browser.
+   Keep the black window open while you use it; close it to stop.
+2. To get the latest RFQs, click "Update from Exiros".
+   A browser window opens on the Exiros login page. Log in.
+   The platform then collects every RFQ (quoted and not quoted) with deadlines,
+   logs out of Exiros and closes that window by itself.
+3. The platform never goes into Exiros unless you click that button and log in.
 
-STEP 2 - DOWNLOAD EVERYTHING (any time)
-1. Double-click download_all_rfqs.bat.
-2. Log in to Exiros, press Enter in the black window. Don't touch the browser while it works.
-3. When it finishes, your Excel file is in the output folder.
-   Reports already downloaded are skipped, so later runs only fetch new RFQs.
+WHAT YOU SEE
+- RFQs sorted by deadline: red = closes within 48 hours, orange = within 7 days.
+- New RFQs are marked "New" until you open them.
+- Click an RFQ for every line: item, quantity, your price, delivery, brand, notes.
+- Price history: search an item to see what you quoted for it before.
+- "Download all as Excel" for everything in one file. All amounts are in SAR.
 
 PRIVACY
-Your password and data stay on your computer. You stay logged in between runs via the
-browser_profile folder; delete that folder to log out.
+Everything stays on this computer (the data folder). Your Exiros password is only
+typed into the Exiros page itself; the platform never sees or stores it.

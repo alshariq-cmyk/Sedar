@@ -1,11 +1,28 @@
 {
-  "_help": "Portal-specific settings. Filled in from the pages saved with 'capture'. Selectors are CSS selectors.",
+  "_help": "Exiros portal settings, filled in once from the portal screenshots. Selectors are CSS selectors.",
   "portal_url": "",
+  "logged_in_selector": "",
   "rfq_list_url": "",
+  "rfq_row": "",
   "rfq_link": "",
   "rfq_number_regex": "\\d{6,}",
+  "deadline": "",
+  "deadline_formats": [
+    "%d/%m/%Y %H:%M",
+    "%d/%m/%Y",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%d",
+    "%d-%b-%Y %H:%M",
+    "%d-%b-%Y",
+    "%m/%d/%Y %H:%M",
+    "%m/%d/%Y"
+  ],
+  "title": "",
   "next_page": "",
   "download_button": "",
-  "delay_seconds": 3,
-  "download_timeout_seconds": 60
+  "logout_selector": "",
+  "logout_url": "",
+  "delay_seconds": 2,
+  "download_timeout_seconds": 60,
+  "max_pages": 200
 }

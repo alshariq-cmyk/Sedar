@@ -6,5 +6,5 @@ python -m venv .venv || (pause & exit /b 1)
 .venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install -r requirements.txt || (pause & exit /b 1)
 echo.
-echo Setup finished. Double-click "capture_pages.bat" first, then "download_all_rfqs.bat" once the settings are filled in.
+echo Setup finished. Double-click "start_platform.bat" to open the RFQ Platform.
 pause
