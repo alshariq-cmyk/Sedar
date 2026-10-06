@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Import data{% endblock %}
+{% block content %}
+<h1>Import data from Exiros</h1>
+<p class="sub">Export a report from Exiros as CSV or Excel and upload it here. On the next screen you can check which column is which before anything is saved.</p>
+{% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<div class="grid two" style="margin-bottom:16px">
+  <div class="card">
+    <h2>Upload a file</h2>
+    <form action="/import/upload" method="post" enctype="multipart/form-data">
+      <div class="row">
+        <label>Type of data
+          <select name="dataset">
+            <option value="sales">Sales lines (invoice detail)</option>
+            <option value="inventory">Stock on hand</option>
+          </select>
+        </label>
+      </div>
+      <div class="row"><input type="file" name="file" accept=".csv,.txt,.xlsx,.xlsm,.xls" required></div>
+      <button class="btn" type="submit">Upload and check columns</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Which reports to export</h2>
+    <p><strong>Sales lines:</strong> one row per invoice line, with date, customer, item code, quantity and amount (or unit price). Add the invoice number and cost if the report has them, so you also get order counts and profit.</p>
+    <p><strong>Stock on hand:</strong> one row per item, with item code and quantity on hand. Add unit cost, supplier and lead time if available. Each stock upload replaces the previous one.</p>
+    <p class="muted">Currently loaded: {{ '{:,}'.format(counts.get('sales', 0)) }} sales lines, {{ '{:,}'.format(counts.get('inventory', 0)) }} stock items.</p>
+  </div>
+</div>
+{% if history %}
+<div class="card table-wrap">
+  <h2>Import history</h2>
+  <table>
+    <tr><th>When</th><th>Type</th><th>File</th><th class="n">Rows</th><th class="n">Skipped</th><th></th></tr>
+    {% for h in history %}
+    <tr><td>{{ h.imported_at }}</td><td>{{ h.dataset }}</td><td>{{ h.filename }}</td><td class="n">{{ '{:,}'.format(h.rows_imported) }}</td><td class="n">{{ h.rows_skipped }}</td>
+      <td><form method="post" action="/import/{{ h.id }}/delete" onsubmit="return confirm('Remove the data from this import?')"><button class="btn secondary small">Remove</button></form></td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros.html" import delta %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="sub">Last {{ kpis.days }} days of sales up to {{ kpis.as_of.strftime('%d %b %Y') }} (the latest date in your data).</p>
+
+<div class="grid kpis">
+  <div class="card kpi"><div class="label">Revenue</div><div class="value">{{ kpis.current.revenue|money }}</div>{{ delta(kpis.change.revenue) }}</div>
+  <div class="card kpi"><div class="label">Gross profit</div><div class="value">{{ kpis.current.gross_profit|money }}</div>{% if kpis.current.gross_profit is not none %}{{ delta(kpis.change.gross_profit) }}{% else %}<span class="delta muted">needs a cost column</span>{% endif %}</div>
+  <div class="card kpi"><div class="label">Margin</div><div class="value">{{ kpis.current.margin|num(1) }}{% if kpis.current.margin is not none %}%{% endif %}</div>{% if kpis.current.margin is not none %}{{ delta(kpis.change.margin, points=true) }}{% endif %}</div>
+  <div class="card kpi"><div class="label">Orders</div><div class="value">{{ kpis.current.orders|num }}</div>{{ delta(kpis.change.orders) }}</div>
+  <div class="card kpi"><div class="label">Average order</div><div class="value">{{ kpis.current.avg_order|money }}</div>{{ delta(kpis.change.avg_order) }}</div>
+  <div class="card kpi"><div class="label">Customers buying</div><div class="value">{{ kpis.current.customers|num }}</div>{{ delta(kpis.change.customers) }}</div>
+</div>
+
+<div class="grid two" style="margin-bottom:16px">
+  <div class="card">
+    <h2>What needs your attention</h2>
+    {% if insights %}
+    <ul class="insights">
+      {% for i in insights %}<li class="{{ i.level }}">{{ i.text }}{% if i.link %} <a href="{{ i.link }}">View →</a>{% endif %}</li>{% endfor %}
+    </ul>
+    {% else %}<p class="muted">Nothing stands out right now.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Revenue by month</h2>
+    <div class="chart-box"><canvas id="trend"></canvas></div>
+  </div>
+</div>
+
+{% if stock %}
+<div class="grid kpis">
+  <div class="card kpi"><div class="label">Stock value</div><div class="value">{{ stock.stock_value|money }}</div></div>
+  <div class="card kpi"><div class="label">Items to reorder</div><div class="value">{{ stock.reorder_count }}</div><a class="delta" href="/inventory?status=Reorder+now">View list</a></div>
+  <div class="card kpi"><div class="label">Out of stock (still selling)</div><div class="value">{{ stock.out_of_stock_count }}</div><a class="delta" href="/inventory?status=Out+of+stock">View list</a></div>
+  <div class="card kpi"><div class="label">Dead stock value</div><div class="value">{{ stock.dead_stock_value|money }}</div><span class="delta muted">no sales in 90 days</span></div>
+</div>
+{% endif %}
+
+<div class="grid two">
+  <div class="card">
+    <h2>Top customers · last 90 days</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Customer</th><th class="n">Revenue</th><th class="n">Share</th><th class="n">vs prior 90d</th></tr>
+      {% for c in top_customers %}
+      <tr><td>{{ c.customer }}</td><td class="n">{{ c.revenue|money }}</td><td class="n">{{ c.share|num(1) }}%</td>
+        <td class="n {{ 'up' if c.change is not none and c.change >= 0 else 'down' }}">{{ c.change|pct }}</td></tr>
+      {% endfor %}
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Top products · last 12 months</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Item</th><th>Class</th><th class="n">Revenue</th><th class="n">Margin</th></tr>
+      {% for p in top_products %}
+      <tr><td>{{ p.product_code }}{% if p.product_name %} <span class="muted">· {{ p.product_name }}</span>{% endif %}</td><td>{{ p.abc }}</td>
+        <td class="n">{{ p.revenue_12m|money }}</td><td class="n">{{ p.margin_12m|num(1) }}{% if p.margin_12m == p.margin_12m and p.margin_12m is not none %}%{% endif %}</td></tr>
+      {% endfor %}
+    </table></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/chart.umd.min.js"></script>
+<script>
+  const trend = {{ trend|safe }};
+  const css = getComputedStyle(document.documentElement);
+  const color = n => css.getPropertyValue(n).trim();
+  const datasets = [{ label: "Revenue", data: trend.map(r => r.revenue), backgroundColor: color("--accent"), borderRadius: 4 }];
+  if (trend.some(r => r.gross_profit !== null)) {
+    datasets.push({ label: "Gross profit", data: trend.map(r => r.gross_profit), backgroundColor: color("--good"), borderRadius: 4 });
+  }
+  if (window.Chart) {
+    Chart.defaults.color = color("--muted");
+    Chart.defaults.borderColor = color("--border");
+    new Chart(document.getElementById("trend"), {
+      type: "bar",
+      data: { labels: trend.map(r => r.month), datasets },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } }, scales: { y: { ticks: { callback: v => v.toLocaleString() } } } },
+    });
+  }
+</script>
+{% endblock %}

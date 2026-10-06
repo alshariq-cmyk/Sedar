@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill %}
+{% block title %}Products &amp; stock{% endblock %}
+{% block content %}
+<h1>Products &amp; stock</h1>
+<p class="sub">Sales speed is the average daily quantity sold over the last 90 days. The reorder point covers the supplier lead time plus a week of safety stock. Suggested orders top stock up to cover a further 30 days. ABC class: A items bring in the first 80% of revenue, B the next 15%, C the rest.</p>
+{% if not has_inventory %}
+<div class="flash err">No stock-on-hand data yet. <a href="/import">Import a stock export</a> to get reorder suggestions.</div>
+{% endif %}
+{% if summary %}
+<div class="grid kpis">
+  <div class="card kpi"><div class="label">Stock value</div><div class="value">{{ summary.stock_value|money }}</div></div>
+  <div class="card kpi"><div class="label">Reorder now</div><div class="value">{{ summary.reorder_count }}</div></div>
+  <div class="card kpi"><div class="label">Out of stock</div><div class="value">{{ summary.out_of_stock_count }}</div></div>
+  <div class="card kpi"><div class="label">Overstock value</div><div class="value">{{ summary.overstock_value|money }}</div><span class="delta muted">more than 180 days of cover</span></div>
+  <div class="card kpi"><div class="label">Dead stock value</div><div class="value">{{ summary.dead_stock_value|money }}</div></div>
+</div>
+{% endif %}
+<div class="filters">
+  <a href="/inventory" class="{{ 'active' if not status }}">All</a>
+  {% for s in ['Out of stock', 'Reorder now', 'OK', 'Overstock', 'Dead stock', 'No stock, no sales', 'Not in stock file'] if counts.get(s) %}
+  <a href="/inventory?status={{ s|urlencode }}" class="{{ 'active' if status == s }}">{{ s }} ({{ counts[s] }})</a>
+  {% endfor %}
+  <span class="spacer"></span>
+  {% if has_inventory %}<a href="/export/reorder.xlsx">Download reorder list</a>{% endif %}
+  <a href="/export/products.xlsx">Download all products</a>
+</div>
+<div class="card table-wrap">
+<table>
+  <tr><th>Item</th><th>Class</th><th>Status</th><th class="n">On hand</th><th class="n">Sold/day</th><th class="n">Days of cover</th><th class="n">Lead time</th><th class="n">Suggested order</th><th class="n">Stock value</th><th class="n">Revenue 12m</th><th class="n">Margin</th><th>Last sold</th><th>Supplier</th></tr>
+  {% for r in rows %}
+  <tr><td>{{ r.product_code }}{% if r.product_name %} <span class="muted">· {{ r.product_name }}</span>{% endif %}</td><td>{{ r.abc }}</td><td>{{ pill(r.status) }}</td>
+    <td class="n">{{ r.on_hand|num }}</td><td class="n">{{ r.daily_velocity|num(1) }}</td><td class="n">{{ r.days_of_cover|num }}</td><td class="n">{{ r.lead_time_days|num }}</td>
+    <td class="n">{% if r.suggested_order %}<strong>{{ r.suggested_order|num }}</strong>{% else %}–{% endif %}</td>
+    <td class="n">{{ r.stock_value|money }}</td><td class="n">{{ r.revenue_12m|money }}</td><td class="n">{{ r.margin_12m|num(1) }}</td><td>{{ r.last_sold or '–' }}</td><td>{{ r.supplier or '–' }}</td></tr>
+  {% else %}<tr><td colspan="13" class="muted">No products match.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

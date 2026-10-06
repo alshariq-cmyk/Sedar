@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pill %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<h1>Customers</h1>
+<p class="sub">How often each customer orders, and who has gone quiet. "At risk" means a regular customer hasn't ordered in more than twice their usual gap. "Declining" means they spent at least 40% less in the last 90 days than in the 90 days before.</p>
+<div class="filters">
+  <a href="/customers" class="{{ 'active' if not status }}">All</a>
+  {% for s in ['At risk', 'Declining', 'Active', 'Occasional', 'New', 'Lapsed'] if counts.get(s) %}
+  <a href="/customers?status={{ s|urlencode }}" class="{{ 'active' if status == s }}">{{ s }} ({{ counts[s] }})</a>
+  {% endfor %}
+  <span class="spacer"></span>
+  <a href="/export/customers.xlsx">Download Excel</a>
+</div>
+<div class="card table-wrap">
+<table>
+  <tr><th>Customer</th><th>Status</th><th class="n">Lifetime revenue</th><th class="n">Orders</th><th class="n">Usual gap (days)</th><th class="n">Days since last</th><th>Last order</th><th class="n">Last 90d</th><th class="n">Prior 90d</th></tr>
+  {% for r in rows %}
+  <tr><td>{{ r.customer }}</td><td>{{ pill(r.status) }}</td><td class="n">{{ r.lifetime_revenue|money }}</td><td class="n">{{ r.orders }}</td>
+    <td class="n">{{ r.avg_days_between|num(0) }}</td><td class="n">{{ r.days_since_last }}</td><td>{{ r.last_order }}</td>
+    <td class="n">{{ r.revenue_90d|money }}</td><td class="n">{{ r.revenue_prev_90d|money }}</td></tr>
+  {% else %}<tr><td colspan="9" class="muted">No customers match.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

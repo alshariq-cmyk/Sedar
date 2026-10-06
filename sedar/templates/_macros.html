@@ -1,0 +1,7 @@
+{% macro pill(status) -%}
+<span class="pill s-{{ status|lower|replace(' ', '-')|replace(',', '') }}">{{ status }}</span>
+{%- endmacro %}
+{% macro delta(value, points=false) -%}
+{% if value is none %}<span class="delta muted">no prior data</span>
+{% else %}<span class="delta {{ 'up' if value >= 0 else 'down' }}">{% if points %}{{ '%+.1f'|format(value) }} pts{% else %}{{ value|pct }}{% endif %} vs prior 30 days</span>{% endif %}
+{%- endmacro %}

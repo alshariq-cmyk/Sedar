@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sedar · {% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">Sedar</a>
+    <nav>
+      <a href="/" class="{{ 'active' if page == 'dashboard' }}">Dashboard</a>
+      <a href="/customers" class="{{ 'active' if page == 'customers' }}">Customers</a>
+      <a href="/inventory" class="{{ 'active' if page == 'inventory' }}">Products &amp; stock</a>
+      <a href="/import" class="{{ 'active' if page == 'import' }}">Import data</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

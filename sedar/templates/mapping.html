@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Check columns{% endblock %}
+{% block content %}
+<h1>Check the columns</h1>
+<p class="sub">{{ filename }}: {{ '{:,}'.format(row_count) }} rows found. Sedar guessed which column holds each field. Fix any that are wrong, then import. Fields marked <span class="req">*</span> are required.</p>
+<form action="/import/confirm" method="post">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="suffix" value="{{ suffix }}">
+  <input type="hidden" name="dataset" value="{{ dataset }}">
+  <input type="hidden" name="filename" value="{{ filename }}">
+  <div class="card" style="margin-bottom:16px">
+    <div class="table-wrap"><table>
+      <tr><th>Field</th><th>Column in your file</th></tr>
+      {% for f in fields %}
+      <tr><td>{{ f.label }}{% if f.required %} <span class="req">*</span>{% endif %}</td>
+        <td><select name="map_{{ f.name }}">
+          <option value="">(not in this file)</option>
+          {% for c in columns %}<option value="{{ c }}" {{ 'selected' if mapping[f.name] == c }}>{{ c }}</option>{% endfor %}
+        </select></td></tr>
+      {% endfor %}
+    </table></div>
+    {% if dataset == 'sales' %}<p class="muted">Map either Line amount or Unit price. If only the unit price is mapped, the amount is unit price × quantity.</p>{% endif %}
+    <div class="row">
+      {% if dataset == 'sales' %}
+      <label>Dates are written
+        <select name="date_order">
+          <option value="auto">Detect automatically</option>
+          <option value="day_first">Day first (31/12/2025)</option>
+          <option value="month_first">Month first (12/31/2025)</option>
+        </select>
+      </label>
+      <label>This file
+        <select name="mode">
+          <option value="append">Adds to existing sales data</option>
+          <option value="replace">Replaces all sales data</option>
+        </select>
+      </label>
+      {% else %}
+      <span class="muted">This replaces the current stock-on-hand data.</span>
+      {% endif %}
+    </div>
+    <button class="btn" type="submit">Import</button> <a href="/import" class="btn secondary">Cancel</a>
+  </div>
+</form>
+<div class="card table-wrap">
+  <h2>First rows of your file</h2>
+  <table>
+    <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
+    {% for r in preview %}<tr>{% for c in columns %}<td>{{ r[c] }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}
