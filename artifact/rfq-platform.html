@@ -3,10 +3,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: a deadline board. Summary strip, then RFQs grouped in urgency bands
+/* Single white theme, as requested.
+   Layout: a deadline board. Summary strip, then RFQs grouped in urgency bands
    (48 hours / this week / later / no deadline / closed); detail slides in from the right. */
 :root {
-  --bg: #f3f5f8; --surface: #ffffff; --sunken: #e9edf3; --line: #d7dde6;
+  --bg: #ffffff; --surface: #ffffff; --sunken: #f1f4f8; --line: #dde2ea;
   --ink: #141b26; --ink-2: #4a5567; --ink-3: #78839a;
   --accent: #1f4fd1; --accent-ink: #ffffff; --accent-soft: #e4ebfc;
   --crit: #c22b2b; --crit-soft: #fbe6e5; --warn: #a96300; --warn-soft: #fdf0dc; --ok: #1d7a47; --ok-soft: #e1f3e8;
@@ -14,22 +15,10 @@
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
   --r: 8px;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0f131a; --surface: #171c25; --sunken: #1e2430; --line: #2b3342;
-  --ink: #e8ecf2; --ink-2: #aab3c2; --ink-3: #7c879a;
-  --accent: #7c9ff5; --accent-ink: #0f131a; --accent-soft: #1c2945;
-  --crit: #f08080; --crit-soft: #3a1d1f; --warn: #e6b05a; --warn-soft: #36291a; --ok: #63c891; --ok-soft: #173023;
-  color-scheme: dark;
-} }
-:root[data-theme="dark"] {
-  --bg: #0f131a; --surface: #171c25; --sunken: #1e2430; --line: #2b3342;
-  --ink: #e8ecf2; --ink-2: #aab3c2; --ink-3: #7c879a;
-  --accent: #7c9ff5; --accent-ink: #0f131a; --accent-soft: #1c2945;
-  --crit: #f08080; --crit-soft: #3a1d1f; --warn: #e6b05a; --warn-soft: #36291a; --ok: #63c891; --ok-soft: #173023;
-  color-scheme: dark;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -153,6 +142,12 @@ a.link, button.link { color: var(--accent); background: none; border: 0; padding
 .log div { padding: 8px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
 .log .ok { border-left: 3px solid var(--ok); } .log .bad { border-left: 3px solid var(--crit); }
 
+.portal-setup { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; margin-bottom: 16px; }
+.portal-setup label { font-weight: 600; }
+.portal-setup input { flex: 1 1 280px; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.portal-setup p { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--ink-2); }
+a.btn { text-decoration: none; display: inline-block; }
+.portal-change { font-size: 12px; color: var(--ink-3); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0 4px; }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: var(--r); z-index: 30; max-width: calc(100% - 32px); font-weight: 500; }
 
 @media (max-width: 860px) {
@@ -178,6 +173,7 @@ a.link, button.link { color: var(--accent); background: none; border: 0; padding
       <button id="tab-add" role="tab" aria-selected="false" data-tab="add">Add reports</button>
     </nav>
     <div class="actions">
+      <span id="portal-slot"></span>
       <button class="btn quiet" id="export-all" type="button">Download Excel</button>
       <button class="btn" id="add-btn" type="button">Add quotation reports</button>
       <input id="file-input" type="file" accept=".xls,.xlsx" multiple hidden>
@@ -186,6 +182,13 @@ a.link, button.link { color: var(--accent); background: none; border: 0; padding
 </header>
 
 <main class="wrap">
+  <form class="portal-setup" id="portal-setup" hidden>
+    <label for="portal-url">Exiros portal address</label>
+    <input id="portal-url" type="url" inputmode="url" placeholder="https://… (copy it from your browser's address bar on the Exiros login page)" required>
+    <button class="btn small" type="submit">Save</button>
+    <button class="btn small quiet" type="button" data-action="portal-cancel">Cancel</button>
+    <p>Saved once, then <strong>Log in to Exiros</strong> opens the portal in a new tab. Your password is only ever typed on the Exiros page.</p>
+  </form>
   <div id="notice" class="notice" hidden></div>
 
   <section id="view-rfqs">
@@ -226,6 +229,10 @@ a.link, button.link { color: var(--accent); background: none; border: 0; padding
     </div>
     <div class="log" id="log"></div>
     <div class="how">
+      <section>
+        <h4>Getting the reports</h4>
+        <ol><li>Click <strong>Log in to Exiros</strong> at the top and log in.</li><li>Open an RFQ and download its quotations report.</li><li>Drop the files here.</li></ol>
+      </section>
       <section>
         <h4>Quoted and not quoted</h4>
         <p>Lines with a unit price count as quoted. An RFQ with no prices shows as <span class="pill s-not-quoted">Not quoted</span>; some prices, <span class="pill s-partially-quoted">Partially quoted</span>.</p>
@@ -346,7 +353,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const slug = s => String(s).toLowerCase().replace(/\s+/g, "-");
 
 /* ---------- State ---------- */
-const state = { rfqs: new Map(), loaded: false, tab: "rfqs", show: "open", openRfq: null, confirmDelete: false };
+const state = { portalUrl: null, rfqs: new Map(), loaded: false, tab: "rfqs", show: "open", openRfq: null, confirmDelete: false };
 let db = null, canWrite = true, downloads = null;
 const $ = id => document.getElementById(id);
 
@@ -476,7 +483,15 @@ function renderHistory() {
     </tbody></table></div>`;
 }
 
+function renderPortal() {
+  const slot = $("portal-slot");
+  slot.innerHTML = state.portalUrl
+    ? `<a class="btn ghost" id="portal-link" href="${esc(state.portalUrl)}" target="_blank" rel="noopener noreferrer">Log in to Exiros ↗</a><button class="portal-change" type="button" data-action="portal-edit">change</button>`
+    : `<button class="btn ghost" type="button" data-action="portal-edit">Log in to Exiros</button>`;
+}
+
 function render() {
+  renderPortal();
   for (const t of ["rfqs", "history", "add"]) { $("view-" + t).hidden = state.tab !== t; $("tab-" + t).setAttribute("aria-selected", String(state.tab === t)); }
   for (const b of document.querySelectorAll("[data-show]")) b.setAttribute("aria-pressed", String(b.dataset.show === state.show));
   renderBoard(); renderHistory(); renderDrawer();
@@ -575,6 +590,8 @@ document.addEventListener("click", async e => {
     case "export-all": exportExcel(null); break;
     case "export-one": exportExcel(state.openRfq); break;
     case "close": state.openRfq = null; render(); break;
+    case "portal-edit": $("portal-setup").hidden = false; $("portal-url").value = state.portalUrl || ""; $("portal-url").focus(); break;
+    case "portal-cancel": $("portal-setup").hidden = true; break;
     case "clear-deadline": patchRfq(state.openRfq, { deadline: null, deadlineSource: null }).then(() => toast("Deadline cleared"), writeFailed); render(); break;
     case "delete-ask": state.confirmDelete = true; render(); break;
     case "delete-no": state.confirmDelete = false; render(); break;
@@ -587,7 +604,15 @@ document.addEventListener("click", async e => {
 });
 $("scrim").addEventListener("click", () => { state.openRfq = null; render(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && state.openRfq) { state.openRfq = null; render(); } });
-document.addEventListener("submit", e => {
+document.addEventListener("submit", async e => {
+  if (e.target.id === "portal-setup") {
+    e.preventDefault();
+    const url = $("portal-url").value.trim();
+    if (!/^https:\/\/[^\s]+$/i.test(url)) { toast("Use the full address, starting with https://"); return; }
+    state.portalUrl = url; $("portal-setup").hidden = true; render();
+    try { if (db) await db.doc("settings/portal").set({ url }); toast("Saved. Log in to Exiros now opens the portal."); } catch (err) { writeFailed(err); }
+    return;
+  }
   if (e.target.id !== "deadline-form") return;
   e.preventDefault();
   const d = $("dl-date").value; if (!d) { toast("Pick a date first."); return; }
@@ -619,6 +644,7 @@ render();
   if (!store) { state.loaded = true; notice("Saving isn't available in this view. Files you add are only kept until you close the page."); render(); return; }
   db = store;
   if (!canWrite) notice("You can view these RFQs but not change them.");
+  db.doc("settings/portal").onSnapshot(snap => { state.portalUrl = snap.exists ? (snap.data().url || null) : null; renderPortal(); }, () => {});
   db.collection("rfqs").onSnapshot(snap => {
     state.rfqs = new Map(snap.docs.filter(d => d.exists).map(d => [d.id, { lines: [], ...d.data(), rfq: d.id }]));
     state.loaded = true; render();
