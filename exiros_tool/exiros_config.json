@@ -1,6 +1,6 @@
 {
   "_help": "Exiros portal settings, filled in once from the portal screenshots. Selectors are CSS selectors.",
-  "portal_url": "",
+  "portal_url": "https://suppliersworkplace.exiros.com/EPR/Portal/",
   "logged_in_selector": "",
   "rfq_list_url": "",
   "rfq_row": "",
