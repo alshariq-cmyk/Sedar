@@ -17,8 +17,8 @@ from test_rfq_to_excel import make_report  # noqa: E402
 CHROMIUM = os.environ.get("CHROMIUM_PATH", "/opt/pw-browsers/chromium")
 needs_chromium = pytest.mark.skipif(not Path(CHROMIUM).exists(), reason="no local Chromium")
 
-FUTURE = (datetime.now() + timedelta(days=3)).strftime("%d/%m/%Y")
-PAST = (datetime.now() - timedelta(days=3)).strftime("%d/%m/%Y")
+FUTURE = (datetime.now() + timedelta(days=3)).strftime("%m/%d/%Y")
+PAST = (datetime.now() - timedelta(days=3)).strftime("%m/%d/%Y")
 RFQS = {"5400796": f"{FUTURE} 14:00", "5400801": FUTURE, "5400815": f"{PAST} 10:00"}
 
 
@@ -80,8 +80,9 @@ def headless(p):
 
 def test_parse_deadline():
     formats = exiros_fetch.DEFAULTS["deadline_formats"]
-    assert exiros_fetch.parse_deadline("Closes 07/10/2026 14:00", formats) == "2026-10-07 14:00"
-    assert exiros_fetch.parse_deadline("07/10/2026", formats) == "2026-10-07 23:59"
+    # As the Exiros tender list shows it (month first).
+    assert exiros_fetch.parse_deadline("10/07/2026 01:00 | 0d 19h 1m", formats) == "2026-10-07 01:00"
+    assert exiros_fetch.parse_deadline("10/07/2026", formats) == "2026-10-07 23:59"
     assert exiros_fetch.parse_deadline("12-Oct-2026 09:30", formats) == "2026-10-12 09:30"
     assert exiros_fetch.parse_deadline("", formats) is None
 

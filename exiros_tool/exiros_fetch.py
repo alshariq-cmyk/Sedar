@@ -38,7 +38,8 @@ DEFAULTS = {
     "rfq_link": "",             # link that opens the RFQ (inside the row if rfq_row is set)
     "rfq_number_regex": r"\d{6,}",
     "deadline": "",             # deadline text inside the row
-    "deadline_formats": ["%d/%m/%Y %H:%M", "%d/%m/%Y", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d-%b-%Y %H:%M", "%d-%b-%Y", "%m/%d/%Y %H:%M", "%m/%d/%Y"],
+    # The Exiros tender list shows "10/07/2026 01:00 | 0d 19h 1m": month first, GMT+3.
+    "deadline_formats": ["%m/%d/%Y %H:%M", "%m/%d/%Y", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d-%b-%Y %H:%M", "%d-%b-%Y"],
     "title": "",                # RFQ title/subject inside the row (optional)
     "next_page": "",            # next-page button on the list (optional)
     "download_button": "",      # on the RFQ page: triggers the quotations report download
